@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>镜我 | 情绪漂流</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --canvas: #000000;
+            --surface-soft: #0d0d0d;
+            --surface-card: #141414;
+            --hairline: #262626;
+            --hairline-strong: #3a3a3a;
+            --text-main: #ffffff;
+            --text-body: #cccccc;
+            --text-strong: #e6e6e6;
+            --text-muted: #999999;
+            --text-soft: #666666;
+            --display-font: "Didot", "Bodoni MT", "Times New Roman", serif;
+            --body-font: "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+            --mono-font: "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--canvas);
+            color: var(--text-main);
+            font-family: var(--body-font);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                linear-gradient(to right, rgba(255,255,255,0.06) 0, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 100%),
+                linear-gradient(to bottom, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 100%);
+            background-size: 100% 100%, 100% 160px;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        .page {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 40px 24px 120px;
+            min-height: 100vh;
+        }
+
+        .mono {
+            font-family: var(--mono-font);
+            text-transform: uppercase;
+            letter-spacing: 0.32em;
+        }
+
+        .wordmark {
+            font-size: 11px;
+            color: var(--text-main);
+            margin: 0;
+        }
+
+        .header-section {
+            text-align: center;
+            padding: 60px 0 80px;
+        }
+
+        .hero-title {
+            font-family: var(--display-font);
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 400;
+            line-height: 0.92;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin: 0 0 20px;
+        }
+
+        .hero-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.8;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        /* 情绪漂浮区域 */
+        .emotion-float-area {
+            position: relative;
+            height: 750px;
+            margin: 60px 0;
+        }
+
+        /* 情绪气泡基础样式 */
+        .emotion-bubble {
+            position: absolute;
+            background: var(--surface-card);
+            border: 1px solid var(--hairline);
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            overflow: hidden;
+        }
+
+        .emotion-bubble:hover {
+            border-color: var(--text-muted);
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .emotion-bubble.selected {
+            border-color: var(--text-main);
+            opacity: 0.3;
+        }
+
+        .emotion-bubble.dropping {
+            z-index: 100;
+            transition: none !important;
+        }
+
+        .emotion-bubble.dropped {
+            position: absolute !important;
+        }
+
+        .emotion-inner {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 20px;
+            position: relative;
+        }
+
+        .emotion-name {
+            font-family: var(--display-font);
+            font-size: 1rem;
+            font-weight: 400;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-main);
+            z-index: 2;
+            margin-top: 12px;
+        }
+
+        /* 线条容器 */
+        .emotion-lines {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        /* ====== 1. 焦虑 Anxiety ====== */
+        .emotion-anxiety .emotion-lines {
+            background-image: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 3px,
+                rgba(255,255,255,0.06) 3px,
+                rgba(255,255,255,0.06) 4px,
+                transparent 4px,
+                transparent 6px
+            );
+        }
+
+        .emotion-anxiety::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 2px,
+                rgba(255,255,255,0.04) 2px,
+                rgba(255,255,255,0.04) 3px
+            );
+            animation: anxietyShake 0.3s linear infinite;
+        }
+
+        @keyframes anxietyShake {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(1px, 1px); }
+            50% { transform: translate(-1px, 0); }
+            75% { transform: translate(0, -1px); }
+        }
+
+        .emotion-anxiety:hover::after {
+            animation: anxietyShake 0.15s linear infinite;
+        }
+
+        .emotion-anxiety .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                135deg,
+                rgba(255,255,255,0.08),
+                rgba(255,255,255,0.08) 1px,
+                transparent 1px,
+                transparent 8px
+            );
+            animation: anxietyPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes anxietyPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+
+        .emotion-anxiety:hover .emotion-lines::before {
+            animation-duration: 0.8s;
+        }
+
+        /* ====== 2. 卡住 Stuck ====== */
+        .emotion-stuck .emotion-lines {
+            background: repeating-linear-gradient(
+                to right,
+                transparent,
+                transparent 8px,
+                rgba(255,255,255,0.1) 8px,
+                rgba(255,255,255,0.1) 10px,
+                transparent 10px,
+                transparent 28px
+            );
+        }
+
+        .emotion-stuck::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 15%;
+            width: 24px;
+            height: 70%;
+            background: rgba(255,255,255,0.15);
+            transform: translateX(-50%);
+            animation: stuckBlock 2s ease-in-out infinite;
+        }
+
+        @keyframes stuckBlock {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(3px); }
+        }
+
+        .emotion-stuck:hover::after {
+            animation: stuckBlock 0.8s ease-in-out infinite;
+        }
+
+        .emotion-stuck .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                to right,
+                transparent,
+                transparent 24px,
+                rgba(255,255,255,0.05) 24px,
+                rgba(255,255,255,0.05) 28px
+            );
+        }
+
+        /* ====== 3. 不确定 Uncertainty ====== */
+        .emotion-uncertainty .emotion-lines {
+            background: repeating-radial-gradient(
+                ellipse at 50% 50%,
+                transparent 0px,
+                transparent 8px,
+                rgba(255,255,255,0.05) 8px,
+                rgba(255,255,255,0.05) 10px
+            );
+            animation: uncertaintyDrift 6s ease-in-out infinite;
+        }
+
+        @keyframes uncertaintyDrift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(5px, -3px) rotate(1deg); }
+            66% { transform: translate(-3px, 5px) rotate(-1deg); }
+        }
+
+        .emotion-uncertainty:hover .emotion-lines {
+            animation: uncertaintyDrift 3s ease-in-out infinite;
+        }
+
+        .emotion-uncertainty .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 10%;
+            border: 1px dashed rgba(255,255,255,0.08);
+            border-radius: 50%;
+            animation: uncertaintyPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes uncertaintyPulse {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.3; }
+            50% { transform: scale(1.1) rotate(5deg); opacity: 0.6; }
+        }
+
+        .emotion-uncertainty:hover .emotion-lines::before {
+            animation-duration: 2s;
+        }
+
+        /* ====== 4. 有点累 Tired ====== */
+        .emotion-tired .emotion-lines {
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 15px,
+                rgba(255,255,255,0.06) 15px,
+                rgba(255,255,255,0.06) 16px
+            );
+            animation: tiredSag 5s ease-in-out infinite;
+        }
+
+        @keyframes tiredSag {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.95); }
+        }
+
+        .emotion-tired:hover .emotion-lines {
+            animation: tiredSag 8s ease-in-out infinite;
+        }
+
+        .emotion-tired .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to bottom,
+                transparent 0%,
+                transparent 60%,
+                rgba(255,255,255,0.03) 100%
+            );
+        }
+
+        .emotion-tired .emotion-lines::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30%;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 20px,
+                rgba(255,255,255,0.04) 20px,
+                rgba(255,255,255,0.04) 22px
+            );
+            animation: tiredSink 7s ease-in-out infinite;
+        }
+
+        @keyframes tiredSink {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(8px); }
+        }
+
+        /* ====== 5. 烦 Irritated ====== */
+        .emotion-irritated .emotion-lines {
+            background: repeating-linear-gradient(
+                25deg,
+                transparent,
+                transparent 4px,
+                rgba(255,255,255,0.08) 4px,
+                rgba(255,255,255,0.08) 5px
+            );
+            animation: irritatedBuzz 0.4s linear infinite;
+        }
+
+        @keyframes irritatedBuzz {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(0.5px, 0.5px); }
+            50% { transform: translate(-0.5px, 0); }
+            75% { transform: translate(0, -0.5px); }
+        }
+
+        .emotion-irritated:hover .emotion-lines {
+            animation: irritatedBuzz 0.2s linear infinite;
+        }
+
+        .emotion-irritated .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-conic-gradient(
+                from 0deg,
+                transparent 0deg,
+                transparent 20deg,
+                rgba(255,255,255,0.03) 20deg,
+                rgba(255,255,255,0.03) 25deg
+            );
+            animation: irritatedGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes irritatedGlow {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.5; }
+        }
+
+        .emotion-irritated:hover .emotion-lines::before {
+            animation: irritatedGlow 1.5s ease-in-out infinite;
+        }
+
+        /* ====== 6. 在意 Concerned ====== */
+        .emotion-concerned .emotion-lines {
+            background: radial-gradient(
+                ellipse at 50% 50%,
+                transparent 30%,
+                transparent 60%,
+                rgba(255,255,255,0.04) 70%,
+                transparent 80%
+            );
+        }
+
+        .emotion-concerned .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 20%;
+            border: 2px solid rgba(255,255,255,0.06);
+            border-radius: 50%;
+            animation: concernWrap 4s ease-in-out infinite;
+        }
+
+        @keyframes concernWrap {
+            0%, 100% {
+                transform: scale(1);
+                border-color: rgba(255,255,255,0.06);
+            }
+            50% {
+                transform: scale(0.85);
+                border-color: rgba(255,255,255,0.12);
+            }
+        }
+
+        .emotion-concerned:hover .emotion-lines::before {
+            animation: concernWrap 2.5s ease-in-out infinite;
+        }
+
+        .emotion-concerned .emotion-lines::after {
+            content: "";
+            position: absolute;
+            inset: 35%;
+            border: 1px dashed rgba(255,255,255,0.04);
+            border-radius: 50%;
+            animation: concernInner 5s ease-in-out infinite reverse;
+        }
+
+        @keyframes concernInner {
+            0%, 100% { transform: scale(0.9) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+        }
+
+        /* ====== 7. 迷茫 Lost ====== */
+        .emotion-lost .emotion-lines {
+            background: radial-gradient(
+                circle at 20% 30%,
+                rgba(255,255,255,0.08) 1px,
+                transparent 1px
+            ),
+            radial-gradient(
+                circle at 70% 20%,
+                rgba(255,255,255,0.06) 2px,
+                transparent 2px
+            ),
+            radial-gradient(
+                circle at 40% 60%,
+                rgba(255,255,255,0.05) 1px,
+                transparent 1px
+            ),
+            radial-gradient(
+                circle at 80% 70%,
+                rgba(255,255,255,0.07) 2px,
+                transparent 2px
+            ),
+            radial-gradient(
+                circle at 15% 80%,
+                rgba(255,255,255,0.04) 1px,
+                transparent 1px
+            ),
+            radial-gradient(
+                circle at 60% 40%,
+                rgba(255,255,255,0.06) 2px,
+                transparent 2px
+            ),
+            radial-gradient(
+                circle at 30% 50%,
+                rgba(255,255,255,0.05) 1px,
+                transparent 1px
+            );
+            background-size: 100% 100%;
+            animation: lostDrift 8s ease-in-out infinite;
+        }
+
+        @keyframes lostDrift {
+            0% { background-position: 0 0; }
+            25% { background-position: 5px -3px; }
+            50% { background-position: -3px 5px; }
+            75% { background-position: 3px 3px; }
+            100% { background-position: 0 0; }
+        }
+
+        .emotion-lost:hover .emotion-lines {
+            animation: lostDrift 4s ease-in-out infinite;
+        }
+
+        .emotion-lost .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(
+                circle at 50% 50%,
+                rgba(255,255,255,0.03) 2px,
+                transparent 2px
+            );
+            animation: lostPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes lostPulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.5); }
+        }
+
+        /* ====== 8. 孤独 Lonely ====== */
+        .emotion-lonely .emotion-lines {
+            background: linear-gradient(
+                to bottom,
+                transparent 45%,
+                rgba(255,255,255,0.1) 45%,
+                rgba(255,255,255,0.1) 47%,
+                transparent 47%,
+                transparent 53%,
+                rgba(255,255,255,0.1) 53%,
+                rgba(255,255,255,0.1) 55%,
+                transparent 55%
+            );
+            animation: lonelyPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes lonelyPulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+
+        .emotion-lonely:hover .emotion-lines {
+            animation: lonelyPulse 2s ease-in-out infinite;
+        }
+
+        .emotion-lonely .emotion-lines::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 30%;
+            background: rgba(255,255,255,0.2);
+            animation: lonelyLine 6s ease-in-out infinite;
+        }
+
+        @keyframes lonelyLine {
+            0%, 100% { height: 30%; opacity: 0.5; }
+            50% { height: 40%; opacity: 0.8; }
+        }
+
+        /* ====== 9. 平静 Calm ====== */
+        .emotion-calm .emotion-lines {
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 20px,
+                rgba(255,255,255,0.03) 20px,
+                rgba(255,255,255,0.03) 21px
+            );
+        }
+
+        .emotion-calm .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0.02) 0%,
+                transparent 50%,
+                rgba(255,255,255,0.02) 100%
+            );
+            animation: calmBreath 5s ease-in-out infinite;
+        }
+
+        @keyframes calmBreath {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
+        }
+
+        .emotion-calm:hover .emotion-lines::before {
+            animation: calmBreath 3s ease-in-out infinite;
+        }
+
+        .emotion-calm .emotion-lines::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            right: 10%;
+            height: 1px;
+            background: rgba(255,255,255,0.15);
+            animation: calmRipple 4s ease-in-out infinite;
+        }
+
+        @keyframes calmRipple {
+            0%, 100% { opacity: 0.3; width: 80%; }
+            50% { opacity: 0.6; width: 90%; }
+        }
+
+        /* ====== 10. 压抑 Suppressed ====== */
+        .emotion-suppressed .emotion-lines {
+            background: conic-gradient(
+                from 0deg,
+                rgba(255,255,255,0.1) 0deg,
+                rgba(255,255,255,0.08) 90deg,
+                rgba(255,255,255,0.1) 180deg,
+                rgba(255,255,255,0.08) 270deg,
+                rgba(255,255,255,0.1) 360deg
+            );
+            animation: suppressedSpiral 40s linear infinite;
+        }
+
+        @keyframes suppressedSpiral {
+            from { transform: rotate(0deg) scale(1.1); }
+            to { transform: rotate(360deg) scale(1.1); }
+        }
+
+        .emotion-suppressed:hover .emotion-lines {
+            animation: suppressedSpiral 20s linear infinite;
+        }
+
+        .emotion-suppressed .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 20%;
+            background: radial-gradient(
+                circle at 50% 50%,
+                rgba(255,255,255,0.1) 0%,
+                transparent 100%
+            );
+            animation: suppressedIn 20s ease-in-out infinite;
+        }
+
+        @keyframes suppressedIn {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(0.65); opacity: 0.9; }
+        }
+
+        .emotion-suppressed .emotion-lines::after {
+            content: "";
+            position: absolute;
+            inset: 5%;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 50%;
+            animation: suppressedIn 20s ease-in-out infinite reverse;
+        }
+
+        /* ====== 11. 尴尬 Awkward ====== */
+        .emotion-awkward .emotion-lines {
+            background: transparent;
+        }
+
+        .emotion-awkward::before {
+            content: "";
+            position: absolute;
+            top: 30%;
+            left: 15%;
+            width: 25%;
+            height: 40%;
+            background: rgba(255,255,255,0.08);
+            animation: awkwardPush 3s ease-in-out infinite;
+        }
+
+        .emotion-awkward::after {
+            content: "";
+            position: absolute;
+            top: 30%;
+            right: 15%;
+            width: 25%;
+            height: 40%;
+            background: rgba(255,255,255,0.06);
+            animation: awkwardPush 3s ease-in-out infinite;
+        }
+
+        @keyframes awkwardPush {
+            0%, 100% { transform: translateX(0); }
+            45% { transform: translateX(30px); }
+            55% { transform: translateX(-30px); }
+        }
+
+        .emotion-awkward:hover::before,
+        .emotion-awkward:hover::after {
+            animation: awkwardPush 1.5s ease-in-out infinite;
+        }
+
+        .emotion-awkward .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: transparent;
+        }
+
+        /* ====== 地面线 ====== */
+        .ground-line {
+            position: fixed;
+            bottom: 100px;
+            left: 5%;
+            right: 5%;
+            height: 1px;
+            background: rgba(255,255,255,0.15);
+            z-index: 50;
+        }
+
+        .ground-line::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.015) 100%);
+        }
+
+        /* ====== 已选情绪容器 ====== */
+        .selected-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 24px 30px;
+            text-align: center;
+            z-index: 100;
+        }
+
+        .selected-container.visible {
+        }
+
+        .selected-header {
+            display: none;
+        }
+
+        .selected-items {
+            display: none;
+        }
+
+        .selected-tag {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--surface-card);
+            border: 1px solid var(--hairline-strong);
+            border-radius: 999px;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            animation: tagSlideIn 0.3s ease both;
+        }
+
+        @keyframes tagSlideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .selected-tag .remove {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: color 0.2s ease;
+        }
+
+        .selected-tag .remove:hover {
+            color: var(--text-main);
+        }
+
+        .action-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .prompt-text {
+            color: var(--text-body);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            max-width: 500px;
+            opacity: 0.8;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .primary-btn {
+            appearance: none;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.88);
+            background: transparent;
+            color: var(--text-main);
+            font-family: var(--mono-font);
+            font-size: 12px;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            padding: 15px 34px;
+            cursor: pointer;
+            transition: background 0.25s ease, color 0.25s ease;
+            white-space: nowrap;
+        }
+
+        .primary-btn:hover {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .primary-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .secondary-btn {
+            appearance: none;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: var(--mono-font);
+            font-size: 11px;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            padding: 8px 16px;
+        }
+
+        .secondary-btn:hover {
+            color: var(--text-main);
+        }
+
+        /* 响应式 */
+        @media (max-width: 980px) {
+            body::before {
+                background-size: 100% 100%, 100% 120px;
+            }
+
+            .page {
+                padding: 24px 16px 180px;
+            }
+
+            .hero-title {
+                font-size: clamp(2rem, 10vw, 3.5rem);
+            }
+
+            .emotion-float-area {
+                height: 650px;
+            }
+
+            .emotion-bubble {
+                min-width: 110px !important;
+                min-height: 95px !important;
+            }
+
+            .action-area {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .prompt-text {
+                max-width: none;
+                margin-bottom: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header>
+            <p class="wordmark mono">Mirror Self</p>
+        </header>
+
+        <div class="header-section">
+            <h1 class="hero-title">情绪<br>漂流</h1>
+            <p class="hero-subtitle">此刻有什么在漂浮？选择符合你状态的情绪，让我们一起看见它们。</p>
+        </div>
+
+        <div class="emotion-float-area" id="floatArea">
+            <!-- 情绪气泡将由 JavaScript 动态生成 -->
+        </div>
+    </div>
+
+    <div class="ground-line" id="groundLine"></div>
+
+    <div class="selected-container" id="selectedContainer">
+        <div class="selected-header" id="selectedHeader">已选择</div>
+        <div class="selected-items" id="selectedItems"></div>
+        <div class="action-area">
+            <p class="prompt-text" id="promptText">点击漂浮的情绪，让它们落下来</p>
+            <div class="button-group">
+                <button onclick="clearSelection()" class="secondary-btn">清除</button>
+                <button onclick="proceedToExpress()" id="proceedBtn" class="primary-btn" disabled>开始表达</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 情绪配置
+        const emotions = [
+            { id: 'anxiety', name: '焦虑', class: 'emotion-anxiety' },
+            { id: 'stuck', name: '卡住', class: 'emotion-stuck' },
+            { id: 'uncertainty', name: '不确定', class: 'emotion-uncertainty' },
+            { id: 'tired', name: '累', class: 'emotion-tired' },
+            { id: 'irritated', name: '烦', class: 'emotion-irritated' },
+            { id: 'concerned', name: '在意', class: 'emotion-concerned' },
+            { id: 'lost', name: '迷茫', class: 'emotion-lost' },
+            { id: 'lonely', name: '孤独', class: 'emotion-lonely' },
+            { id: 'calm', name: '平静', class: 'emotion-calm' },
+            { id: 'suppressed', name: '压抑', class: 'emotion-suppressed' },
+            { id: 'awkward', name: '尴尬', class: 'emotion-awkward' },
+        ];
+
+        // 引导文案
+        const prompts = {
+            1: "很好，这是一个开始。还有其他感受吗？",
+            2: "慢慢浮现了。再看看还有什么？",
+            3: "情绪开始聚集了。继续觉察...",
+            4: "很多情绪在一起了。准备好表达了吗？",
+            5: "内心已经很丰富了。可以开始了。",
+            6: "全都看见了。让我们一起面对它们。",
+            7: "情绪交织着。每一个都值得被看见。",
+            8: "复杂的内心世界。准备好探索了吗？",
+            9: "几乎全部捕捉到了。可以开始了。",
+            10: "完整的情绪图谱。让我们一起理解它们。",
+            11: "所有情绪都在这里了。准备好开始吗？"
+        };
+
+        let selectedEmotions = [];
+        let bubblePositions = {};
+
+        // 不规则布局位置 - 11个情绪
+        const positions = [
+            { left: '2%', top: '6%', width: '140px', height: '120px', delay: '0s' },
+            { left: '20%', top: '15%', width: '160px', height: '140px', delay: '0.25s' },
+            { left: '45%', top: '4%', width: '130px', height: '110px', delay: '0.5s' },
+            { left: '65%', top: '12%', width: '150px', height: '130px', delay: '0.75s' },
+            { left: '82%', top: '30%', width: '135px', height: '115px', delay: '1s' },
+            { left: '6%', top: '40%', width: '145px', height: '125px', delay: '1.25s' },
+            { left: '28%', top: '50%', width: '155px', height: '135px', delay: '1.5s' },
+            { left: '52%', top: '44%', width: '140px', height: '120px', delay: '1.75s' },
+            { left: '72%', top: '53%', width: '145px', height: '125px', delay: '2s' },
+            { left: '38%', top: '72%', width: '160px', height: '140px', delay: '2.25s' },
+            { left: '60%', top: '78%', width: '135px', height: '115px', delay: '2.5s' },
+        ];
+
+        // 初始化情绪气泡
+        function initEmotions() {
+            const floatArea = document.getElementById('floatArea');
+
+            emotions.forEach((emotion, index) => {
+                const pos = positions[index] || positions[0];
+                const bubble = document.createElement('div');
+                bubble.className = `emotion-bubble ${emotion.class}`;
+                bubble.id = `bubble-${emotion.id}`;
+                bubble.style.left = pos.left;
+                bubble.style.top = pos.top;
+                bubble.style.width = pos.width;
+                bubble.style.height = pos.height;
+                bubble.style.animation = `floatUp 0.8s ease ${pos.delay} both`;
+
+                bubble.innerHTML = `
+                    <div class="emotion-lines"></div>
+                    <div class="emotion-inner">
+                        <span class="emotion-name">${emotion.name}</span>
+                    </div>
+                `;
+
+                bubble.addEventListener('click', () => dropEmotion(emotion));
+                floatArea.appendChild(bubble);
+
+                // 保存原始位置
+                setTimeout(() => {
+                    const rect = bubble.getBoundingClientRect();
+                    bubblePositions[emotion.id] = {
+                        left: bubble.style.left,
+                        top: bubble.style.top,
+                        width: bubble.style.width,
+                        height: bubble.style.height,
+                        rectLeft: rect.left,
+                        rectTop: rect.top
+                    };
+                }, 1000);
+            });
+        }
+
+        // 浮现动画
+        const styleSheet = document.createElement('style');
+        styleSheet.textContent = `
+            @keyframes floatUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        `;
+        document.head.appendChild(styleSheet);
+
+        // 情绪掉落效果
+        function dropEmotion(emotion) {
+            const bubble = document.getElementById(`bubble-${emotion.id}`);
+            const index = selectedEmotions.findIndex(e => e.id === emotion.id);
+            const originalPos = bubblePositions[emotion.id];
+            const groundLine = document.getElementById('groundLine');
+            const groundRect = groundLine.getBoundingClientRect();
+
+            if (index > -1) {
+                // 已选择，移除并恢复原位
+                selectedEmotions.splice(index, 1);
+                bubble.classList.remove('selected', 'dropping', 'dropped');
+
+                // 恢复到原始位置
+                bubble.style.position = 'absolute';
+                bubble.style.left = originalPos.left;
+                bubble.style.top = originalPos.top;
+                bubble.style.width = originalPos.width;
+                bubble.style.height = originalPos.height;
+                bubble.style.transform = '';
+                bubble.style.opacity = '';
+                bubble.style.pointerEvents = '';
+
+                updateSelectedContainer();
+            } else {
+                // 未选择，执行掉落动画
+                const rect = bubble.getBoundingClientRect();
+                const dropTargetY = groundRect.top - parseFloat(originalPos.height) - 10;
+
+                // 切换到 fixed 定位
+                bubble.style.position = 'fixed';
+                bubble.style.left = rect.left + 'px';
+                bubble.style.top = rect.top + 'px';
+                bubble.classList.add('dropping');
+
+                // 计算掉落距离和添加物理动画
+                const dropDistance = dropTargetY - rect.top;
+
+                // 模拟重力掉落
+                bubble.style.transition = 'top 0.6s cubic-bezier(0.55, 0.055, 0.675, 0.19), ' +
+                                      'transform 0.6s cubic-bezier(0.55, 0.055, 0.675, 0.19), ' +
+                                      'opacity 0.6s ease';
+
+                requestAnimationFrame(() => {
+                    bubble.style.top = (rect.top + dropDistance) + 'px';
+                    bubble.style.transform = 'scale(0.85)';
+                    bubble.style.opacity = '0.4';
+                });
+
+                // 动画完成后
+                setTimeout(() => {
+                    bubble.classList.remove('dropping');
+                    bubble.classList.add('dropped');
+
+                    // 添加到选择列表
+                    selectedEmotions.push(emotion);
+                    updateSelectedContainer();
+                }, 600);
+            }
+        }
+
+        // 更新已选容器
+        function updateSelectedContainer() {
+            const promptText = document.getElementById('promptText');
+            const proceedBtn = document.getElementById('proceedBtn');
+
+            if (selectedEmotions.length === 0) {
+                promptText.textContent = '点击漂浮的情绪，让它们落下来';
+                proceedBtn.disabled = true;
+                return;
+            }
+
+            // 更新引导文案
+            const count = selectedEmotions.length;
+            promptText.textContent = prompts[count] || prompts[6];
+
+            // 更新按钮状态
+            proceedBtn.disabled = false;
+        }
+
+        // 移除情绪
+        function removeEmotion(emotionId) {
+            const index = selectedEmotions.findIndex(e => e.id === emotionId);
+            if (index > -1) {
+                selectedEmotions.splice(index, 1);
+                const bubble = document.getElementById(`bubble-${emotionId}`);
+                const originalPos = bubblePositions[emotionId];
+
+                if (originalPos) {
+                    bubble.classList.remove('selected', 'dropping', 'dropped');
+
+                    // 恢复到原始位置
+                    bubble.style.position = 'absolute';
+                    bubble.style.left = originalPos.left;
+                    bubble.style.top = originalPos.top;
+                    bubble.style.width = originalPos.width;
+                    bubble.style.height = originalPos.height;
+                    bubble.style.transform = '';
+                    bubble.style.opacity = '';
+                    bubble.style.pointerEvents = '';
+                }
+                updateSelectedContainer();
+            }
+        }
+
+        // 清除选择
+        function clearSelection() {
+            selectedEmotions.forEach(emotion => {
+                const bubble = document.getElementById(`bubble-${emotion.id}`);
+                const originalPos = bubblePositions[emotion.id];
+
+                if (originalPos) {
+                    bubble.classList.remove('selected', 'dropping', 'dropped');
+
+                    // 恢复到原始位置
+                    bubble.style.position = 'absolute';
+                    bubble.style.left = originalPos.left;
+                    bubble.style.top = originalPos.top;
+                    bubble.style.width = originalPos.width;
+                    bubble.style.height = originalPos.height;
+                    bubble.style.transform = '';
+                    bubble.style.opacity = '';
+                    bubble.style.pointerEvents = '';
+                }
+            });
+            selectedEmotions = [];
+            updateSelectedContainer();
+        }
+
+        // 继续到表达页面
+        function proceedToExpress() {
+            if (selectedEmotions.length === 0) return;
+
+            // 保存选中的情绪到 localStorage
+            localStorage.setItem('selected_emotions', JSON.stringify(selectedEmotions.map(e => e.name)));
+
+            // 跳转到 start.html
+            window.location.href = 'start.html';
+        }
+
+        // 添加缓慢漂浮动画到气泡
+        function addFloatingAnimation() {
+            emotions.forEach((emotion, index) => {
+                const bubble = document.getElementById(`bubble-${emotion.id}`);
+                if (bubble) {
+                    const duration = 8 + Math.random() * 6;
+                    const yOffset = -10 + Math.random() * 20;
+                    bubble.style.animation += `, slowFloat ${duration}s ease-in-out infinite alternate`;
+                }
+            });
+        }
+
+        const floatStyleSheet = document.createElement('style');
+        floatStyleSheet.textContent = `
+            @keyframes slowFloat {
+                from { transform: translateY(0); }
+                to { transform: translateY(${20 + Math.random() * 40}px); }
+            }
+        `;
+        document.head.appendChild(floatStyleSheet);
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initEmotions();
+            setTimeout(addFloatingAnimation, 3000);
+        });
+    </script>
+</body>
+</html>

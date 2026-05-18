@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>镜我 | 镜子仓库</title>
+    <style>
+        :root {
+            --canvas: #000000;
+            --surface-soft: #0d0d0d;
+            --surface-card: #141414;
+            --hairline: #262626;
+            --hairline-strong: #3a3a3a;
+            --text-main: #ffffff;
+            --text-body: #cccccc;
+            --text-strong: #e6e6e6;
+            --text-muted: #999999;
+            --text-soft: #666666;
+            --display-font: "Didot", "Bodoni MT", "Times New Roman", serif;
+            --body-font: "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+            --mono-font: "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--canvas);
+            color: var(--text-main);
+            font-family: var(--body-font);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                linear-gradient(to bottom, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 100%),
+                linear-gradient(to right, rgba(255,255,255,0.02) 0, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 100%);
+            background-size: 100% 156px, 25% 100%;
+            pointer-events: none;
+            opacity: 0.45;
+        }
+
+        .page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 36px 24px 96px;
+        }
+
+        .mono {
+            font-family: var(--mono-font);
+            text-transform: uppercase;
+            letter-spacing: 0.28em;
+        }
+
+        .wordmark {
+            font-size: 11px;
+            color: var(--text-main);
+            margin: 0;
+        }
+
+        /* 顶部菜单栏 */
+        .top-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            background: var(--surface-card);
+            border-bottom: 1px solid var(--hairline);
+            overflow: hidden;
+            transition: height 0.3s ease;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 48px;
+        }
+
+        .top-menu.show {
+            height: 48px;
+        }
+
+        .top-menu-trigger {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            z-index: 9999;
+        }
+
+        .top-menu-link {
+            color: var(--text-muted);
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: color 0.2s ease;
+            cursor: pointer;
+        }
+
+        .top-menu-link:hover {
+            color: var(--text-main);
+        }
+
+        .header {
+            margin-bottom: 48px;
+        }
+
+        .title-kicker {
+            margin: 28px 0 14px;
+            color: var(--text-muted);
+            font-size: 10px;
+        }
+
+        .title {
+            margin: 0;
+            font-family: var(--display-font);
+            font-size: clamp(2.8rem, 7vw, 5.7rem);
+            font-weight: 400;
+            line-height: 1.1;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.8;
+            margin-top: 16px;
+        }
+
+        .archive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .archive-card {
+            background: var(--surface-card);
+            border: 1px solid var(--hairline);
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .archive-card:hover {
+            border-color: var(--text-muted);
+        }
+
+        .archive-card .delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--hairline);
+            border-radius: 50%;
+            color: var(--text-muted);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 10;
+        }
+
+        .archive-card:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .archive-card .delete-btn:hover {
+            background: #ff4444;
+            border-color: #ff4444;
+            color: white;
+        }
+
+        .archive-card-image {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            overflow: hidden;
+        }
+
+        .archive-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(0.08) contrast(1.08) brightness(0.9);
+        }
+
+        .archive-card-content {
+            padding: 20px;
+        }
+
+        .archive-card-date {
+            font-family: var(--mono-font);
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .archive-card-text {
+            color: var(--text-body);
+            font-size: 0.9rem;
+            line-height: 1.7;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .archive-empty {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-muted);
+        }
+
+        .archive-empty p {
+            margin-bottom: 24px;
+        }
+
+        .action-btn {
+            appearance: none;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.88);
+            background: transparent;
+            color: var(--text-main);
+            font-family: var(--mono-font);
+            font-size: 12px;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            padding: 15px 30px;
+            cursor: pointer;
+            transition: background 0.25s ease, color 0.25s ease;
+        }
+
+        .action-btn:hover {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-menu" id="topMenu">
+        <p class="wordmark mono" onclick="location.href='home.html'" style="cursor: pointer;">Mirror Self</p>
+        <span class="top-menu-link" onclick="location.href='home.html'">返回首页</span>
+    </div>
+    <div class="top-menu-trigger" id="topMenuTrigger"></div>
+
+    <div class="page">
+        <header class="header">
+            <p class="title-kicker mono">Archive</p>
+            <h1 class="title">镜子仓库</h1>
+            <p class="subtitle">回看曾经的情绪与镜像</p>
+        </header>
+
+        <div class="archive-grid" id="archiveGrid">
+            <!-- 历史记录将由 JavaScript 动态生成 -->
+        </div>
+
+        <div class="archive-empty hidden" id="archiveEmpty">
+            <p>暂无历史记录</p>
+            <button class="action-btn" onclick="location.href='home.html'">开始记录</button>
+        </div>
+    </div>
+
+    <script>
+        // 顶部菜单逻辑
+        const menuTrigger = document.getElementById('topMenuTrigger');
+        const topMenu = document.getElementById('topMenu');
+        if (menuTrigger && topMenu) {
+            menuTrigger.addEventListener('mouseenter', () => {
+                topMenu.classList.add('show');
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (e.clientY > 80) {
+                    topMenu.classList.remove('show');
+                }
+            });
+        }
+
+        // 加载历史记录
+        function loadArchive() {
+            const grid = document.getElementById('archiveGrid');
+            const empty = document.getElementById('archiveEmpty');
+
+            // 从 localStorage 读取历史记录
+            const history = JSON.parse(localStorage.getItem('mirror_history') || '[]');
+
+            if (history.length === 0) {
+                grid.classList.add('hidden');
+                empty.classList.remove('hidden');
+                empty.querySelector('p').textContent = '暂无历史记录';
+                return;
+            }
+
+            grid.classList.remove('hidden');
+            empty.classList.add('hidden');
+
+            grid.innerHTML = history.map((record, index) => `
+                <div class="archive-card">
+                    <button class="delete-btn" onclick="deleteRecord(event, ${index})" title="删除">✕</button>
+                    <div class="archive-card-image" onclick="viewRecord(${index})">
+                        <img src="${record.portrait || ''}" alt="镜像">
+                    </div>
+                    <div class="archive-card-content" onclick="viewRecord(${index})">
+                        <div class="archive-card-date">${record.date || '未知日期'}</div>
+                        <div class="archive-card-text">${record.vibe || '无记录'}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function deleteRecord(event, index) {
+            event.stopPropagation();
+
+            if (!confirm('确定要删除这条记录吗？')) return;
+
+            const history = JSON.parse(localStorage.getItem('mirror_history') || '[]');
+            history.splice(index, 1);
+            localStorage.setItem('mirror_history', JSON.stringify(history));
+
+            loadArchive();
+        }
+
+        function viewRecord(index) {
+            const history = JSON.parse(localStorage.getItem('mirror_history') || '[]');
+            const record = history[index];
+            if (record) {
+                localStorage.setItem('user_vibe', record.vibe || '');
+                localStorage.setItem('user_portrait', record.portrait || '');
+                localStorage.setItem('user_visual_prompt', record.visualPrompt || '');
+                localStorage.setItem('selected_emotions', JSON.stringify(record.emotions || []));
+
+                // 恢复镜子内容
+                if (record.prismData) {
+                    localStorage.setItem('prism_content', JSON.stringify(record.prismData));
+                } else {
+                    localStorage.removeItem('prism_content');
+                }
+
+                if (record.reflectiveData) {
+                    localStorage.setItem('reflective_content', JSON.stringify(record.reflectiveData));
+                } else {
+                    localStorage.removeItem('reflective_content');
+                }
+
+                if (record.refractionData) {
+                    localStorage.setItem('refraction_content', JSON.stringify(record.refractionData));
+                } else {
+                    localStorage.removeItem('refraction_content');
+                }
+
+                location.href = 'index.html';
+            }
+        }
+
+        loadArchive();
+    </script>
+</body>
+</html>

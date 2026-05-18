@@ -1,0 +1,16 @@
+<svg style="display:none;">
+  <defs>
+    <filter id="fisheye-expand" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" in="blur" result="goo"/>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop" result="combined"/>
+      <feDisplacementMap in="SourceGraphic" in2="goo" scale="30" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="fisheye-shrink" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" in="blur" result="goo"/>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop" result="combined"/>
+      <feDisplacementMap in="SourceGraphic" in2="goo" scale="-25" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>

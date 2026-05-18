@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>镜我 | 唤醒原始镜像</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --canvas: #000000;
+            --surface-soft: #0d0d0d;
+            --surface-card: #141414;
+            --hairline: #262626;
+            --hairline-strong: #3a3a3a;
+            --text-main: #ffffff;
+            --text-body: #cccccc;
+            --text-strong: #e6e6e6;
+            --text-muted: #999999;
+            --text-soft: #666666;
+            --link: #c3d9f3;
+            --display-font: "Didot", "Bodoni MT", "Times New Roman", serif;
+            --body-font: "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+            --mono-font: "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--canvas);
+            color: var(--text-main);
+            font-family: var(--body-font);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                linear-gradient(to right, rgba(255,255,255,0.06) 0, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 100%),
+                linear-gradient(to bottom, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 100%);
+            background-size: 100% 100%, 100% 160px;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        .shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        }
+
+        .panel {
+            position: relative;
+            padding: 56px 5.5vw;
+        }
+
+        .panel-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border-right: 1px solid var(--hairline);
+        }
+
+        .panel-right {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: var(--surface-soft);
+            overflow: hidden;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .wordmark,
+        .eyebrow,
+        .meta,
+        .button-label {
+            font-family: var(--mono-font);
+            text-transform: uppercase;
+            letter-spacing: 0.32em;
+        }
+
+        .wordmark {
+            font-size: 11px;
+            color: var(--text-main);
+        }
+
+        /* 顶部菜单栏 */
+        .top-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            background: var(--surface-card);
+            border-bottom: 1px solid var(--hairline);
+            overflow: hidden;
+            transition: height 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 48px;
+        }
+
+        .top-menu.show {
+            height: 48px;
+        }
+
+        .top-menu-trigger {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            z-index: 999;
+        }
+
+        .top-menu-link {
+            color: var(--text-muted);
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: color 0.2s ease;
+            cursor: pointer;
+        }
+
+        .top-menu-link:hover {
+            color: var(--text-main);
+        }
+
+        .back-link {
+            color: var(--text-muted);
+            font-family: var(--mono-font);
+            font-size: 10px;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .back-link:hover {
+            color: var(--text-main);
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin: 0 0 18px;
+        }
+
+        .hero-title {
+            margin: 0;
+            font-family: var(--display-font);
+            font-size: clamp(3rem, 7vw, 5.8rem);
+            font-weight: 400;
+            line-height: 0.92;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            max-width: 7ch;
+        }
+
+        .hero-copy {
+            max-width: 33rem;
+            margin: 28px 0 0;
+            color: var(--text-body);
+            font-size: 1rem;
+            line-height: 1.85;
+        }
+
+        .form-block {
+            margin-top: 56px;
+            padding-top: 28px;
+            border-top: 1px solid var(--hairline);
+        }
+
+        .field-label {
+            display: block;
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-family: var(--body-font);
+            font-size: 1rem;
+            line-height: 1.8;
+            height: 1.8em;
+            overflow: hidden;
+        }
+
+        .field-label-text {
+            display: block;
+            animation: scrollText 12s ease-in-out infinite;
+        }
+
+        @keyframes scrollText {
+            0%, 20% { transform: translateY(0); }
+            25%, 45% { transform: translateY(-1.8em); }
+            50%, 70% { transform: translateY(-3.6em); }
+            75%, 95% { transform: translateY(-5.4em); }
+            100% { transform: translateY(0); }
+        }
+
+        .field {
+            width: 100%;
+            min-height: 220px;
+            border: 0;
+            border-bottom: 1px solid var(--hairline-strong);
+            padding: 0 0 18px;
+            padding-right: 50px;
+            background: transparent;
+            color: var(--text-main);
+            font-family: var(--body-font);
+            font-size: 1.15rem;
+            line-height: 1.9;
+            resize: none;
+            outline: none;
+            transition: border-color 0.3s ease, color 0.3s ease;
+        }
+
+        .field:focus {
+            border-color: var(--text-main);
+        }
+
+        .quill-icon {
+            position: absolute;
+            right: 16px;
+            bottom: 16px;
+            width: 24px;
+            height: 24px;
+            color: var(--text-soft);
+            opacity: 0.4;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .field:focus ~ .quill-icon {
+            opacity: 0.6;
+        }
+
+        .field:focus {
+            border-color: var(--text-main);
+        }
+
+        .field::placeholder {
+            color: var(--text-soft);
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-top: 28px;
+        }
+
+        .primary-btn,
+        .secondary-btn {
+            appearance: none;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.88);
+            background: transparent;
+            color: var(--text-main);
+            font-family: var(--mono-font);
+            font-size: 12px;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.25s ease, color 0.25s ease, opacity 0.25s ease;
+        }
+
+        .primary-btn {
+            padding: 15px 34px;
+        }
+
+        .secondary-btn {
+            width: 100%;
+            padding: 15px 24px;
+        }
+
+        .primary-btn:hover,
+        .secondary-btn:hover {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .primary-btn:disabled,
+        .secondary-btn:disabled {
+            opacity: 0.45;
+            cursor: wait;
+        }
+
+        .meta {
+            margin-top: 18px;
+            color: var(--text-soft);
+            font-size: 10px;
+            line-height: 1.8;
+        }
+
+        .visual-stage {
+            position: relative;
+            width: min(60vh, 60vw, 600px);
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+            border: 1px solid var(--hairline);
+            background: #050505;
+        }
+
+        .visual-stage::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border: 1px solid rgba(255,255,255,0.05);
+            pointer-events: none;
+        }
+
+        /* 情绪气泡漩涡动画 */
+        .emotion-bubbles-container.vortex-mode {
+            z-index: 10 !important;
+        }
+
+        .emotion-bubbles-container.vortex-mode .emotion-bubble {
+            position: absolute !important;
+            transform-origin: center center !important;
+            opacity: 1 !important;
+            transition: opacity 0.5s ease, background 0.5s ease, border 0.5s ease;
+        }
+
+        .emotion-bubbles-container.vortex-mode .emotion-bubble.spinning {
+            border: 1px solid rgba(255,255,255,0.5) !important;
+            background: rgba(30,30,30,0.9) !important;
+            z-index: 100 !important;
+            animation: emotionVortexSpin var(--spin-duration, 8s) cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+            transition: none;
+        }
+
+        .emotion-bubbles-container.vortex-mode .emotion-bubble::before,
+        .emotion-bubbles-container.vortex-mode .emotion-bubble::after {
+            transition: opacity 0.5s ease;
+        }
+
+        .emotion-bubbles-container.vortex-mode .emotion-bubble.spinning::before,
+        .emotion-bubbles-container.vortex-mode .emotion-bubble.spinning::after {
+            content: none !important;
+        }
+
+        .emotion-bubbles-container.vortex-mode .emotion-bubble .emotion-lines {
+            transition: background 0.5s ease;
+        }
+
+        .emotion-bubbles-container.vortex-mode .emotion-bubble.spinning .emotion-lines {
+            background: transparent !important;
+        }
+
+        .emotion-bubbles-container.vortex-mode .emotion-bubble .emotion-lines::before,
+        .emotion-bubbles-container.vortex-mode .emotion-bubble .emotion-lines::after {
+            transition: opacity 0.5s ease;
+        }
+
+        .emotion-bubbles-container.vortex-mode .emotion-bubble.spinning .emotion-lines::before,
+        .emotion-bubbles-container.vortex-mode .emotion-bubble.spinning .emotion-lines::after {
+            content: none !important;
+        }
+
+        .emotion-bubbles-container.vortex-mode .emotion-bubble .emotion-name {
+            transition: font-size 0.5s ease, opacity 0.5s ease, color 0.5s ease;
+        }
+
+        .emotion-bubbles-container.vortex-mode .emotion-bubble.spinning .emotion-name {
+            font-size: 0.75rem !important;
+            opacity: 0.9 !important;
+            color: rgba(255,255,255,0.9) !important;
+        }
+
+        @keyframes emotionVortexSpin {
+            0% {
+                transform: rotate(var(--current-angle, 0deg)) translateX(var(--orbit-radius, 150px)) rotate(calc(var(--current-angle, 0deg) * -1));
+            }
+            25% {
+                transform: rotate(calc(var(--current-angle, 0deg) + 90deg)) translateX(calc(var(--orbit-radius, 150px) * 0.92)) rotate(calc((var(--current-angle, 0deg) + 90deg) * -1));
+            }
+            50% {
+                transform: rotate(calc(var(--current-angle, 0deg) + 180deg)) translateX(var(--orbit-radius, 150px)) rotate(calc((var(--current-angle, 0deg) + 180deg) * -1));
+            }
+            75% {
+                transform: rotate(calc(var(--current-angle, 0deg) + 270deg)) translateX(calc(var(--orbit-radius, 150px) * 0.92)) rotate(calc((var(--current-angle, 0deg) + 270deg) * -1));
+            }
+            100% {
+                transform: rotate(calc(var(--current-angle, 0deg) + 360deg)) translateX(var(--orbit-radius, 150px)) rotate(calc((var(--current-angle, 0deg) + 360deg) * -1));
+            }
+        }
+
+        /* 漩涡汇聚效果 */
+        .emotion-bubbles-container.vortex-mode .emotion-bubble.converge {
+            animation: emotionConverge 1.5s ease-in forwards !important;
+        }
+
+        @keyframes emotionConverge {
+            0% {
+                transform: rotate(var(--current-angle, 0deg)) translateX(var(--orbit-radius, 150px)) rotate(calc(var(--current-angle, 0deg) * -1));
+                opacity: 1;
+            }
+            80% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: rotate(calc(var(--current-angle, 0deg) + var(--spin-amount, 720deg))) translateX(10px) rotate(calc((var(--current-angle, 0deg) + var(--spin-amount, 720deg)) * -1));
+                opacity: 0;
+            }
+        }
+
+        /* 漩涡汇聚效果 */
+        .emotion-bubbles-container.vortex-mode .emotion-bubble.converge {
+            animation: emotionConverge 1.5s ease-in forwards !important;
+        }
+
+        @keyframes emotionConverge {
+            0% {
+                transform: rotate(var(--start-angle, 0deg)) translateX(var(--orbit-radius, 150px)) rotate(calc(var(--start-angle, 0deg) * -1));
+                opacity: 1;
+            }
+            80% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: rotate(calc(var(--start-angle, 0deg) + var(--spin-amount, 720deg))) translateX(10px) rotate(calc((var(--start-angle, 0deg) + var(--spin-amount, 720deg)) * -1));
+                opacity: 0;
+            }
+        }
+
+        .vortex-lines {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        .vortex-line {
+            position: absolute;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.2), transparent);
+        }
+
+        .vortex-line:nth-child(10) {
+            left: 30%;
+            height: 60%;
+            top: 20%;
+            animation: vortexLineMove 3s ease-in-out infinite;
+        }
+
+        .vortex-line:nth-child(11) {
+            left: 70%;
+            height: 50%;
+            top: 30%;
+            animation: vortexLineMove 4s ease-in-out infinite 0.5s;
+        }
+
+        .vortex-line:nth-child(12) {
+            left: 50%;
+            height: 70%;
+            top: 15%;
+            animation: vortexLineMove 3.5s ease-in-out infinite 1s;
+        }
+
+        @keyframes vortexLineMove {
+            0%, 100% { transform: translateY(0); opacity: 0.3; }
+            50% { transform: translateY(20px); opacity: 0.6; }
+        }
+
+        .loading-state,
+        .action-bar {
+            animation: rise 0.7s ease both;
+        }
+
+        .loading-state {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 60px 32px 40px;
+            text-align: center;
+            z-index: 5;
+        }
+
+        .loading-state .spinner-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #statusText {
+            font-family: var(--mono-font);
+            font-size: 11px;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+        }
+
+        .loading-state {
+            background: #050505;
+            animation: rise 0.7s ease both;
+        }
+
+        .spinner {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.16);
+            border-top-color: rgba(255,255,255,0.9);
+            animation: spin 1s linear infinite;
+            margin-bottom: 24px;
+        }
+
+        .loading-hint {
+            font-family: var(--body-font);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            opacity: 0.7;
+        }
+
+        .portrait {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(0.08) contrast(1.08) brightness(0.92);
+            animation: imageReveal 1s ease both;
+        }
+
+        .action-bar {
+            width: min(60vh, 60vw, 600px);
+            margin: 15px auto 0;
+            padding-top: 15px;
+            border-top: 1px solid var(--hairline);
+            display: flex;
+            justify-content: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* 情绪气泡容器 */
+        .emotion-bubbles-container {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        /* 情绪气泡样式 */
+        .emotion-bubble {
+            position: absolute;
+            background: var(--surface-card);
+            border: 1px solid var(--hairline);
+            font-size: 0.8rem;
+            color: var(--text-body);
+            font-family: var(--mono-font);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            overflow: hidden;
+        }
+
+        .emotion-inner {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .emotion-name {
+            font-size: 1rem;
+            font-weight: 400;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-main);
+        }
+
+        .emotion-lines {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        @keyframes floatUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 混沌漂浮动画 */
+        @keyframes chaoticFloat1 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(8px, -12px) rotate(3deg); }
+            50% { transform: translate(-6px, 8px) rotate(-2deg); }
+            75% { transform: translate(10px, 5px) rotate(2deg); }
+        }
+
+        @keyframes chaoticFloat2 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(-10px, 6px) rotate(-4deg); }
+            66% { transform: translate(7px, -8px) rotate(3deg); }
+        }
+
+        @keyframes chaoticFloat3 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(5px, -10px) scale(1.05) rotate(2deg); }
+        }
+
+        @keyframes chaoticFloat4 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-8px, -5px) rotate(-3deg); }
+            40% { transform: translate(12px, 3px) rotate(4deg); }
+            60% { transform: translate(-4px, 10px) rotate(-2deg); }
+            80% { transform: translate(6px, -6px) rotate(3deg); }
+        }
+
+        @keyframes chaoticFloat5 {
+            0%, 100% { transform: translate(0, 0) scale(1); opacity: 1; }
+            25% { transform: translate(-12px, 8px) scale(1.03) rotate(-3deg); opacity: 0.9; }
+            50% { transform: translate(5px, -15px) scale(0.97) rotate(4deg); opacity: 1; }
+            75% { transform: translate(-7px, 5px) scale(1.02) rotate(-2deg); opacity: 0.95; }
+        }
+
+        /* ====== 1. 焦虑 Anxiety ====== */
+        .emotion-anxiety .emotion-lines {
+            background-image: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 3px,
+                rgba(255,255,255,0.06) 3px,
+                rgba(255,255,255,0.06) 4px,
+                transparent 4px,
+                transparent 6px
+            );
+        }
+
+        .emotion-anxiety::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 2px,
+                rgba(255,255,255,0.04) 2px,
+                rgba(255,255,255,0.04) 3px
+            );
+            animation: anxietyShake 0.3s linear infinite;
+        }
+
+        @keyframes anxietyShake {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(1px, 1px); }
+            50% { transform: translate(-1px, 0); }
+            75% { transform: translate(0, -1px); }
+        }
+
+        .emotion-anxiety:hover::after {
+            animation: anxietyShake 0.15s linear infinite;
+        }
+
+        .emotion-anxiety .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                135deg,
+                rgba(255,255,255,0.08),
+                rgba(255,255,255,0.08) 1px,
+                transparent 1px,
+                transparent 8px
+            );
+            animation: anxietyPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes anxietyPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+
+        .emotion-anxiety:hover .emotion-lines::before {
+            animation-duration: 0.8s;
+        }
+
+        /* ====== 2. 卡住 Stuck ====== */
+        .emotion-stuck .emotion-lines {
+            background: repeating-linear-gradient(
+                to right,
+                transparent,
+                transparent 8px,
+                rgba(255,255,255,0.1) 8px,
+                rgba(255,255,255,0.1) 10px,
+                transparent 10px,
+                transparent 28px
+            );
+        }
+
+        .emotion-stuck::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 15%;
+            width: 24px;
+            height: 70%;
+            background: rgba(255,255,255,0.15);
+            transform: translateX(-50%);
+            animation: stuckBlock 2s ease-in-out infinite;
+        }
+
+        @keyframes stuckBlock {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(3px); }
+        }
+
+        .emotion-stuck:hover::after {
+            animation: stuckBlock 0.8s ease-in-out infinite;
+        }
+
+        .emotion-stuck .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                to right,
+                transparent,
+                transparent 24px,
+                rgba(255,255,255,0.05) 24px,
+                rgba(255,255,255,0.05) 28px
+            );
+        }
+
+        /* ====== 3. 不确定 Uncertainty ====== */
+        .emotion-uncertainty .emotion-lines {
+            background: repeating-radial-gradient(
+                ellipse at 50% 50%,
+                transparent 0px,
+                transparent 8px,
+                rgba(255,255,255,0.05) 8px,
+                rgba(255,255,255,0.05) 10px
+            );
+            animation: uncertaintyDrift 6s ease-in-out infinite;
+        }
+
+        @keyframes uncertaintyDrift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(5px, -3px) rotate(1deg); }
+            66% { transform: translate(-3px, 5px) rotate(-1deg); }
+        }
+
+        .emotion-uncertainty:hover .emotion-lines {
+            animation: uncertaintyDrift 3s ease-in-out infinite;
+        }
+
+        .emotion-uncertainty .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 10%;
+            border: 1px dashed rgba(255,255,255,0.08);
+            border-radius: 50%;
+            animation: uncertaintyPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes uncertaintyPulse {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.3; }
+            50% { transform: scale(1.1) rotate(5deg); opacity: 0.6; }
+        }
+
+        .emotion-uncertainty:hover .emotion-lines::before {
+            animation-duration: 2s;
+        }
+
+        /* ====== 4. 有点累 Tired ====== */
+        .emotion-tired .emotion-lines {
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 15px,
+                rgba(255,255,255,0.06) 15px,
+                rgba(255,255,255,0.06) 16px
+            );
+            animation: tiredSag 5s ease-in-out infinite;
+        }
+
+        @keyframes tiredSag {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.95); }
+        }
+
+        .emotion-tired:hover .emotion-lines {
+            animation: tiredSag 8s ease-in-out infinite;
+        }
+
+        .emotion-tired .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to bottom,
+                transparent 0%,
+                transparent 60%,
+                rgba(255,255,255,0.03) 100%
+            );
+        }
+
+        .emotion-tired .emotion-lines::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30%;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 20px,
+                rgba(255,255,255,0.04) 20px,
+                rgba(255,255,255,0.04) 22px
+            );
+            animation: tiredSink 7s ease-in-out infinite;
+        }
+
+        @keyframes tiredSink {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(8px); }
+        }
+
+        /* ====== 5. 烦 Irritated ====== */
+        .emotion-irritated .emotion-lines {
+            background: repeating-linear-gradient(
+                25deg,
+                transparent,
+                transparent 4px,
+                rgba(255,255,255,0.08) 4px,
+                rgba(255,255,255,0.08) 5px
+            );
+            animation: irritatedBuzz 0.4s linear infinite;
+        }
+
+        @keyframes irritatedBuzz {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(0.5px, 0.5px); }
+            50% { transform: translate(-0.5px, 0); }
+            75% { transform: translate(0, -0.5px); }
+        }
+
+        .emotion-irritated:hover .emotion-lines {
+            animation: irritatedBuzz 0.2s linear infinite;
+        }
+
+        .emotion-irritated .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-conic-gradient(
+                from 0deg,
+                transparent 0deg,
+                transparent 20deg,
+                rgba(255,255,255,0.03) 20deg,
+                rgba(255,255,255,0.03) 25deg
+            );
+            animation: irritatedGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes irritatedGlow {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.5; }
+        }
+
+        .emotion-irritated:hover .emotion-lines::before {
+            animation: irritatedGlow 1.5s ease-in-out infinite;
+        }
+
+        /* ====== 6. 在意 Concerned ====== */
+        .emotion-concerned .emotion-lines {
+            background: radial-gradient(
+                ellipse at 50% 50%,
+                transparent 30%,
+                transparent 60%,
+                rgba(255,255,255,0.04) 70%,
+                transparent 80%
+            );
+        }
+
+        .emotion-concerned .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 20%;
+            border: 2px solid rgba(255,255,255,0.06);
+            border-radius: 50%;
+            animation: concernWrap 4s ease-in-out infinite;
+        }
+
+        @keyframes concernWrap {
+            0%, 100% {
+                transform: scale(1);
+                border-color: rgba(255,255,255,0.06);
+            }
+            50% {
+                transform: scale(0.85);
+                border-color: rgba(255,255,255,0.12);
+            }
+        }
+
+        .emotion-concerned:hover .emotion-lines::before {
+            animation: concernWrap 2.5s ease-in-out infinite;
+        }
+
+        .emotion-concerned .emotion-lines::after {
+            content: "";
+            position: absolute;
+            inset: 35%;
+            border: 1px dashed rgba(255,255,255,0.04);
+            border-radius: 50%;
+            animation: concernInner 5s ease-in-out infinite reverse;
+        }
+
+        @keyframes concernInner {
+            0%, 100% { transform: scale(0.9) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+        }
+
+        /* ====== 7. 迷茫 Lost ====== */
+        .emotion-lost .emotion-lines {
+            background: radial-gradient(
+                circle at 20% 30%,
+                rgba(255,255,255,0.08) 1px,
+                transparent 1px
+            ),
+            radial-gradient(
+                circle at 70% 20%,
+                rgba(255,255,255,0.06) 2px,
+                transparent 2px
+            ),
+            radial-gradient(
+                circle at 40% 60%,
+                rgba(255,255,255,0.05) 1px,
+                transparent 1px
+            ),
+            radial-gradient(
+                circle at 80% 70%,
+                rgba(255,255,255,0.07) 2px,
+                transparent 2px
+            ),
+            radial-gradient(
+                circle at 15% 80%,
+                rgba(255,255,255,0.04) 1px,
+                transparent 1px
+            ),
+            radial-gradient(
+                circle at 60% 40%,
+                rgba(255,255,255,0.06) 2px,
+                transparent 2px
+            ),
+            radial-gradient(
+                circle at 30% 50%,
+                rgba(255,255,255,0.05) 1px,
+                transparent 1px
+            );
+            background-size: 100% 100%;
+            animation: lostDrift 8s ease-in-out infinite;
+        }
+
+        @keyframes lostDrift {
+            0% { background-position: 0 0; }
+            25% { background-position: 5px -3px; }
+            50% { background-position: -3px 5px; }
+            75% { background-position: 3px 3px; }
+            100% { background-position: 0 0; }
+        }
+
+        .emotion-lost:hover .emotion-lines {
+            animation: lostDrift 4s ease-in-out infinite;
+        }
+
+        .emotion-lost .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(
+                circle at 50% 50%,
+                rgba(255,255,255,0.03) 2px,
+                transparent 2px
+            );
+            animation: lostPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes lostPulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.5); }
+        }
+
+        /* ====== 8. 孤独 Lonely ====== */
+        .emotion-lonely .emotion-lines {
+            background: linear-gradient(
+                to bottom,
+                transparent 45%,
+                rgba(255,255,255,0.1) 45%,
+                rgba(255,255,255,0.1) 47%,
+                transparent 47%,
+                transparent 53%,
+                rgba(255,255,255,0.1) 53%,
+                rgba(255,255,255,0.1) 55%,
+                transparent 55%
+            );
+            animation: lonelyPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes lonelyPulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+
+        .emotion-lonely:hover .emotion-lines {
+            animation: lonelyPulse 2s ease-in-out infinite;
+        }
+
+        .emotion-lonely .emotion-lines::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 30%;
+            background: rgba(255,255,255,0.2);
+            animation: lonelyLine 6s ease-in-out infinite;
+        }
+
+        @keyframes lonelyLine {
+            0%, 100% { height: 30%; opacity: 0.5; }
+            50% { height: 40%; opacity: 0.8; }
+        }
+
+        /* ====== 9. 平静 Calm ====== */
+        .emotion-calm .emotion-lines {
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 20px,
+                rgba(255,255,255,0.03) 20px,
+                rgba(255,255,255,0.03) 21px
+            );
+        }
+
+        .emotion-calm .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0.02) 0%,
+                transparent 50%,
+                rgba(255,255,255,0.02) 100%
+            );
+            animation: calmBreath 5s ease-in-out infinite;
+        }
+
+        @keyframes calmBreath {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
+        }
+
+        .emotion-calm:hover .emotion-lines::before {
+            animation: calmBreath 3s ease-in-out infinite;
+        }
+
+        .emotion-calm .emotion-lines::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            right: 10%;
+            height: 1px;
+            background: rgba(255,255,255,0.15);
+            animation: calmRipple 4s ease-in-out infinite;
+        }
+
+        @keyframes calmRipple {
+            0%, 100% { opacity: 0.3; width: 80%; }
+            50% { opacity: 0.6; width: 90%; }
+        }
+
+        /* ====== 10. 压抑 Suppressed ====== */
+        .emotion-suppressed .emotion-lines {
+            background: transparent;
+            border: 2px solid rgba(255,255,255,0.1);
+            animation: suppressedSpiral 40s linear infinite;
+        }
+
+        @keyframes suppressedSpiral {
+            from { transform: rotate(0deg) scale(1.1); }
+            to { transform: rotate(360deg) scale(1.1); }
+        }
+
+        .emotion-suppressed:hover .emotion-lines {
+            animation: suppressedSpiral 20s linear infinite;
+        }
+
+        .emotion-suppressed .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 25%;
+            border: 1px solid rgba(255,255,255,0.08);
+            animation: suppressedIn 20s ease-in-out infinite;
+        }
+
+        @keyframes suppressedIn {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(0.65); }
+        }
+
+        .emotion-suppressed .emotion-lines::after {
+            content: "";
+            position: absolute;
+            inset: 10%;
+            border: 1px dashed rgba(255,255,255,0.05);
+            animation: suppressedIn 20s ease-in-out infinite reverse;
+        }
+
+        /* ====== 11. 尴尬 Awkward ====== */
+        .emotion-awkward .emotion-lines {
+            background: transparent;
+        }
+
+        .emotion-awkward::before {
+            content: "";
+            position: absolute;
+            top: 30%;
+            left: 15%;
+            width: 25%;
+            height: 40%;
+            background: rgba(255,255,255,0.08);
+            animation: awkwardPush 3s ease-in-out infinite;
+        }
+
+        .emotion-awkward::after {
+            content: "";
+            position: absolute;
+            top: 30%;
+            right: 15%;
+            width: 25%;
+            height: 40%;
+            background: rgba(255,255,255,0.06);
+            animation: awkwardPush 3s ease-in-out infinite;
+        }
+
+        @keyframes awkwardPush {
+            0%, 100% { transform: translateX(0); }
+            45% { transform: translateX(30px); }
+            55% { transform: translateX(-30px); }
+        }
+
+        .emotion-awkward:hover::before,
+        .emotion-awkward:hover::after {
+            animation: awkwardPush 1.5s ease-in-out infinite;
+        }
+
+        .emotion-awkward .emotion-lines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: transparent;
+        }
+
+        /* ====== 地面线 ====== */
+        .ground-line {
+            position: relative;
+            width: 90%;
+            margin: 0 auto;
+            height: 1px;
+            background: rgba(255,255,255,0.15);
+            z-index: 50;
+            margin-top: 250px;
+            margin-bottom: 60px;
+        }
+
+        .ground-line::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.015) 100%);
+        }
+
+        /* ====== 已选情绪容器 ====== */
+        .selected-container {
+            position: relative;
+            width: 100%;
+            padding: 0 24px 60px;
+            text-align: center;
+            z-index: 100;
+        }
+
+        .action-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .prompt-text {
+            color: var(--text-body);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            max-width: 500px;
+            opacity: 0.8;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .primary-btn {
+            appearance: none;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.88);
+            background: transparent;
+            color: var(--text-main);
+            font-family: var(--mono-font);
+            font-size: 12px;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            padding: 15px 34px;
+            cursor: pointer;
+            transition: background 0.25s ease, color 0.25s ease;
+            white-space: nowrap;
+        }
+
+        .primary-btn:hover {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .primary-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .secondary-btn {
+            appearance: none;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: var(--mono-font);
+            font-size: 11px;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            padding: 8px 16px;
+        }
+
+        .secondary-btn:hover {
+            color: var(--text-main);
+        }
+
+        /* 响应式 */
+        @media (max-width: 980px) {
+            body::before {
+                background-size: 100% 100%, 100% 120px;
+            }
+
+            .page {
+                padding: 24px 16px 180px;
+            }
+
+            .hero-title {
+                font-size: clamp(2rem, 10vw, 3.5rem);
+            }
+
+            .emotion-float-area {
+                height: 650px;
+            }
+
+            .emotion-bubble {
+                min-width: 110px !important;
+                min-height: 95px !important;
+            }
+
+            .action-area {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .prompt-text {
+                max-width: none;
+                margin-bottom: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-menu" id="topMenu">
+        <p class="wordmark" onclick="location.href='home.html'" style="cursor: pointer;">Mirror Self</p>
+        <span class="top-menu-link" onclick="location.href='archive.html'">镜子仓库</span>
+    </div>
+    <div class="top-menu-trigger" id="topMenuTrigger"></div>
+
+    <main class="shell">
+        <section class="panel panel-left">
+            <div>
+                <div style="display: flex; justify-content: flex-start; margin-bottom: 16px;">
+                    <a href="home.html" class="back-link">← 返回情绪漂流</a>
+                </div>
+
+                <div class="form-block" style="border-top:0; padding-top:0;">
+                    <p class="eyebrow">Phase 01</p>
+                    <h1 class="hero-title">显影</h1>
+                    <p style="color: var(--text-muted); font-size: 14px; margin-top: 28px; margin-bottom: 16px;">是什么让你有了这些情绪？</p>
+                </div>
+
+                <div class="form-block" style="margin-top: 0; padding-top: 16px;">
+                    <label class="field-label" for="vibeInput">
+                        <span class="field-label-text">
+                            我最近一直在想……<br>
+                            有一件事让我有点在意……<br>
+                            我好像总是……<br>
+                            我不知道为什么，但我会……<br>
+                            我最近一直在想……
+                        </span>
+                    </label>
+                    <div style="position: relative;">
+                        <textarea id="vibeInput" rows="6" class="field"></textarea>
+                        <svg class="quill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5l6.74-6.76z"/>
+                            <path d="M16 8L2 22"/>
+                            <path d="M17.5 15H9"/>
+                        </svg>
+                    </div>
+                    <div class="actions">
+                        <button id="genBtn" onclick="handleGenerate()" class="primary-btn">开始显影</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel panel-right">
+            <div id="displayArea" class="visual-stage">
+                <!-- 已选情绪显示 -->
+                <div id="emotionBubblesContainer" class="emotion-bubbles-container"></div>
+
+                <div id="imgPlaceholder" class="loading-state hidden"></div>
+
+                <img id="portraitImg" class="portrait hidden" alt="生成的心理镜像">
+            </div>
+
+            <div id="actionArea" class="action-bar hidden">
+                <button onclick="enterTheater()" class="primary-btn">进入内在剧场</button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // 显示已选情绪
+        function displaySelectedEmotions() {
+            const container = document.getElementById('emotionBubblesContainer');
+            const selectedData = localStorage.getItem('selected_emotions');
+            
+            if (selectedData) {
+                try {
+                    const emotions = JSON.parse(selectedData);
+                    if (emotions && emotions.length > 0) {
+                        container.innerHTML = '';
+                        
+                        // 预定义位置，避免重叠
+                        const positions = [
+                            { left: '10%', top: '15%' },
+                            { left: '65%', top: '10%' },
+                            { left: '35%', top: '50%' },
+                            { left: '75%', top: '55%' },
+                            { left: '15%', top: '70%' },
+                            { left: '50%', top: '30%' },
+                            { left: '80%', top: '80%' },
+                            { left: '25%', top: '35%' },
+                            { left: '60%', top: '75%' },
+                            { left: '40%', top: '80%' },
+                            { left: '5%', top: '45%' }
+                        ];
+                        
+                        emotions.forEach((emotion, index) => {
+                            const bubble = document.createElement('div');
+                            // 直接使用保存的 class 属性
+                            bubble.className = `emotion-bubble ${emotion.class || ''}`;
+
+                            const pos = positions[index % positions.length];
+                            const size = 70 + Math.random() * 30;
+                            const floatAnimations = ['chaoticFloat1', 'chaoticFloat2', 'chaoticFloat3', 'chaoticFloat4', 'chaoticFloat5'];
+                            const floatAnimation = floatAnimations[Math.floor(Math.random() * floatAnimations.length)];
+                            const floatDuration = 3 + Math.random() * 4;
+                            const delay = Math.random() * 3;
+
+                            bubble.style.width = size + 'px';
+                            bubble.style.height = size + 'px';
+                            bubble.style.left = pos.left;
+                            bubble.style.top = pos.top;
+                            bubble.style.animation = `floatUp 0.8s ease ${delay}s both, ${floatAnimation} ${floatDuration}s ease-in-out infinite`;
+
+                            // 添加线条容器
+                            const lines = document.createElement('div');
+                            lines.className = 'emotion-lines';
+                            bubble.appendChild(lines);
+
+                            // 添加文字容器
+                            const inner = document.createElement('div');
+                            inner.className = 'emotion-inner';
+                            const name = document.createElement('span');
+                            name.className = 'emotion-name';
+                            name.textContent = emotion.name || emotion;
+                            inner.appendChild(name);
+                            bubble.appendChild(inner);
+
+                            container.appendChild(bubble);
+                        });
+                    }
+                } catch (e) {
+                    console.error('Failed to parse selected emotions:', e);
+                }
+            }
+        }
+
+        // 页面加载时显示已选情绪
+        displaySelectedEmotions();
+
+        // 启动情绪漩涡动画
+        function startVortexAnimation() {
+            const container = document.getElementById('emotionBubblesContainer');
+            const bubbles = container.querySelectorAll('.emotion-bubble');
+
+            console.log('启动漩涡动画，气泡数量:', bubbles.length);
+
+            if (bubbles.length === 0) {
+                console.warn('没有找到情绪气泡');
+                return;
+            }
+
+            // 获取容器中心位置
+            const containerRect = container.getBoundingClientRect();
+            const centerX = containerRect.width / 2;
+            const centerY = containerRect.height / 2;
+
+            container.classList.add('vortex-mode');
+
+            bubbles.forEach((bubble, index) => {
+                // 获取气泡当前位置
+                const bubbleRect = bubble.getBoundingClientRect();
+                const bubbleCenterX = bubbleRect.left - containerRect.left + bubbleRect.width / 2;
+                const bubbleCenterY = bubbleRect.top - containerRect.top + bubbleRect.height / 2;
+
+                // 计算相对于中心的角度和距离
+                const dx = bubbleCenterX - centerX;
+                const dy = bubbleCenterY - centerY;
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                console.log(`气泡 ${index}: 当前角度=${angle.toFixed(1)}°, 距离=${distance.toFixed(0)}px`);
+
+                // 设置漩涡动画参数
+                bubble.style.setProperty('--orbit-radius', distance + 'px');
+                bubble.style.setProperty('--current-angle', angle + 'deg');
+
+                // 每个气泡有不同的旋转速度，创造韵律感
+                const speed = 6 + Math.random() * 6; // 6-12秒
+                bubble.style.setProperty('--spin-duration', speed + 's');
+
+                // 移动到中心位置（使用变换）
+                bubble.style.left = '50%';
+                bubble.style.top = '50%';
+                bubble.style.marginLeft = '-50px';
+                bubble.style.marginTop = '-50px';
+                bubble.style.width = '100px';
+                bubble.style.height = '100px';
+
+                // 清除内联动画
+                bubble.style.animation = '';
+
+                // 添加旋转类
+                bubble.classList.add('spinning');
+            });
+        }
+
+        // 情绪汇聚消失动画
+        function convergeEmotions() {
+            const container = document.getElementById('emotionBubblesContainer');
+            const bubbles = container.querySelectorAll('.emotion-bubble');
+
+            bubbles.forEach((bubble, index) => {
+                const spinAmount = 540 + Math.random() * 360;
+                bubble.style.setProperty('--spin-amount', spinAmount + 'deg');
+                bubble.classList.remove('spinning');
+                bubble.classList.add('converge');
+            });
+        }
+
+        // 重置情绪显示
+        function resetEmotionDisplay() {
+            const container = document.getElementById('emotionBubblesContainer');
+            container.classList.remove('vortex-mode');
+            container.innerHTML = '';
+            displaySelectedEmotions();
+        }
+
+        async function handleGenerate() {
+            const vibe = document.getElementById('vibeInput').value.trim();
+            if (!vibe) return alert("请先输入文字描述。");
+
+            const genBtn = document.getElementById('genBtn');
+            const portraitImg = document.getElementById('portraitImg');
+
+            // 重置状态
+            portraitImg.classList.add('hidden');
+            document.getElementById('actionArea').classList.add('hidden');
+            document.getElementById('imgPlaceholder').classList.add('hidden');
+            document.getElementById('emotionBubblesContainer').classList.remove('hidden');
+
+            // 重置气泡到初始状态
+            const container = document.getElementById('emotionBubblesContainer');
+            container.classList.remove('vortex-mode');
+            const bubbles = container.querySelectorAll('.emotion-bubble');
+            bubbles.forEach(bubble => {
+                bubble.classList.remove('spinning', 'converge');
+                bubble.style.animation = '';
+                bubble.style.removeProperty('--orbit-radius');
+                bubble.style.removeProperty('--current-angle');
+                bubble.style.removeProperty('--spin-duration');
+                bubble.style.removeProperty('--spin-amount');
+                bubble.style.removeProperty('--left');
+                bubble.style.removeProperty('--top');
+                bubble.style.removeProperty('--width');
+                bubble.style.removeProperty('--height');
+                bubble.style.removeProperty('--margin-left');
+                bubble.style.removeProperty('--margin-top');
+            });
+            // 重新创建气泡以恢复原始动画
+            container.innerHTML = '';
+            displaySelectedEmotions();
+
+            // 启动漩涡动画
+            startVortexAnimation();
+            const imgPlaceholder = document.getElementById('imgPlaceholder');
+            imgPlaceholder.classList.remove('hidden');
+
+            genBtn.disabled = true;
+            genBtn.innerText = "生成中...";
+
+            try {
+                // 获取选中的情绪
+                const selectedData = localStorage.getItem('selected_emotions');
+                const selectedEmotions = selectedData ? JSON.parse(selectedData) : [];
+                const emotionNames = selectedEmotions.map(e => e.name || e).join('、');
+
+                const promptRes = await fetch('/api/generate-visual-prompt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vibe, emotions: emotionNames })
+                });
+                const promptData = await promptRes.json();
+                if (!promptRes.ok) throw new Error(promptData.error || "意象生成失败");
+                const visualPrompt = promptData.visualPrompt;
+
+                const imgRes = await fetch('/api/generate-portrait', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: visualPrompt })
+                });
+                const imgData = await imgRes.json();
+
+                if (!imgRes.ok) throw new Error(imgData.error || "图像显化失败");
+                const finalImgUrl = imgData.imageUrl;
+
+                // 汇聚动画
+                convergeEmotions();
+
+                portraitImg.src = finalImgUrl;
+                portraitImg.onload = () => {
+                    document.getElementById('imgPlaceholder').classList.add('hidden');
+                    document.getElementById('emotionBubblesContainer').classList.add('hidden');
+                    portraitImg.classList.remove('hidden');
+                    document.getElementById('actionArea').classList.remove('hidden');
+                };
+
+                localStorage.setItem('user_vibe', vibe);
+                localStorage.setItem('user_portrait', finalImgUrl);
+                localStorage.setItem('user_visual_prompt', visualPrompt);
+
+            } catch (e) {
+                console.error('显化失败详情:', e);
+                alert("显化失败：" + e.message);
+                softReset();
+                resetEmotionDisplay();
+            } finally {
+                genBtn.disabled = false;
+                genBtn.innerText = "重新显影";
+            }
+        }
+
+        function softReset() {
+            document.getElementById('portraitImg').classList.add('hidden');
+            document.getElementById('actionArea').classList.add('hidden');
+            document.getElementById('imgPlaceholder').classList.add('hidden');
+            document.getElementById('emotionBubblesContainer').classList.remove('hidden');
+            resetEmotionDisplay();
+        }
+
+        function enterTheater() {
+            // 保存当前记录到历史记录
+            saveToHistory();
+            window.location.href = 'index.html';
+        }
+
+        function saveToHistory() {
+            const vibe = localStorage.getItem('user_vibe') || '';
+            const portrait = localStorage.getItem('user_portrait') || '';
+            const visualPrompt = localStorage.getItem('user_visual_prompt') || '';
+
+            if (!vibe || !portrait) return;
+
+            // 获取选中的情绪
+            const emotionsData = localStorage.getItem('temp_emotions');
+            const emotions = emotionsData ? JSON.parse(emotionsData) : [];
+
+            // 获取已保存的镜子内容（如果有）
+            const prismContent = localStorage.getItem('prism_content');
+            const reflectiveContent = localStorage.getItem('reflective_content');
+            const refractionContent = localStorage.getItem('refraction_content');
+
+            const historyItem = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }),
+                vibe: vibe,
+                portrait: portrait,
+                visualPrompt: visualPrompt,
+                emotions: emotions,
+                prismData: prismContent ? JSON.parse(prismContent) : null,
+                reflectiveData: reflectiveContent ? JSON.parse(reflectiveContent) : null,
+                refractionData: refractionContent ? JSON.parse(refractionContent) : null
+            };
+
+            // 获取现有历史记录
+            const history = JSON.parse(localStorage.getItem('mirror_history') || '[]');
+
+            // 添加新记录到开头
+            history.unshift(historyItem);
+
+            // 只保留最近20条记录
+            if (history.length > 20) {
+                history.length = 20;
+            }
+
+            localStorage.setItem('mirror_history', JSON.stringify(history));
+        }
+
+        // 监听图片加载错误
+        document.addEventListener('DOMContentLoaded', () => {
+            const portraitImg = document.getElementById('portraitImg');
+            const vibeInput = document.getElementById('vibeInput');
+
+            // 检查是否从第一页进入（需要清空输入）
+            const isFreshEntry = localStorage.getItem('fresh_entry') === 'true';
+            if (isFreshEntry) {
+                // 清空用户输入和生成的图像
+                localStorage.removeItem('user_vibe');
+                localStorage.removeItem('user_portrait');
+                localStorage.removeItem('user_visual_prompt');
+                localStorage.removeItem('fresh_entry');
+                // 清空镜子内容
+                localStorage.removeItem('prism_content');
+                localStorage.removeItem('reflective_content');
+                localStorage.removeItem('refraction_content');
+            }
+
+            // 恢复用户输入的内容
+            const savedVibe = localStorage.getItem('user_vibe');
+            if (savedVibe) {
+                vibeInput.value = savedVibe;
+            }
+
+            // 恢复已生成的图片
+            const savedPortrait = localStorage.getItem('user_portrait');
+            if (savedPortrait) {
+                portraitImg.src = savedPortrait;
+                portraitImg.onload = () => {
+                    document.getElementById('imgPlaceholder').classList.add('hidden');
+                    document.getElementById('emotionBubblesContainer').classList.add('hidden');
+                    portraitImg.classList.remove('hidden');
+                    document.getElementById('actionArea').classList.remove('hidden');
+                };
+            }
+
+            portraitImg.onerror = function() {
+                console.error('图片加载失败');
+                alert('图片加载失败，可能链接已过期或网络问题，请重新生成');
+                softReset();
+                resetEmotionDisplay();
+            };
+
+            // 顶部菜单逻辑
+            const menuTrigger = document.getElementById('topMenuTrigger');
+            const topMenu = document.getElementById('topMenu');
+            if (menuTrigger && topMenu) {
+                menuTrigger.addEventListener('mouseenter', () => {
+                    topMenu.classList.add('show');
+                });
+
+                topMenu.addEventListener('mouseenter', () => {
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (e.clientY > 80) {
+                        topMenu.classList.remove('show');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-// 从当前目录的.env文件加载环境变量
 loadEnvFile(path.join(__dirname, '../.env'));
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
@@ -9,8 +8,19 @@ const SILICONFLOW_API_KEY = process.env.SILICONFLOW_API_KEY || "";
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const SILICONFLOW_URL = "https://api.siliconflow.cn/v1/images/generations";
 
+const CONTENT_TYPES = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+};
+
 module.exports = async (req, res) => {
-  // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -22,6 +32,7 @@ module.exports = async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
+    // API Routes
     if (req.method === "GET" && url.pathname === "/api/health") {
       return res.json({
         ok: true,
@@ -85,7 +96,6 @@ module.exports = async (req, res) => {
       assertText(imageUrl, "imageUrl");
       assertText(positiveText, "positiveText");
 
-      // 生成积极视角的图像编辑提示词
       const promptRes = await proxyJson(DEEPSEEK_URL, DEEPSEEK_API_KEY, {
         model: "deepseek-chat",
         messages: [{
@@ -112,7 +122,6 @@ Describe in 50 words, English only:`
         throw createHttpError(502, "Failed to generate edit prompt.");
       }
 
-      // 使用 Qwen 图像编辑模型进行图生图
       const imageData = await proxyJson(SILICONFLOW_URL, SILICONFLOW_API_KEY, {
         model: "Qwen/Qwen-Image-Edit",
         prompt: editPrompt,
@@ -214,12 +223,29 @@ ${input.trim()}`;
       return res.json({ content });
     }
 
-    return res.status(404).json({ error: "Not found" });
+    // Serve static files
+    return serveStaticFile(url.pathname, res);
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({ error: error.message || "Server error" });
   }
 };
+
+function serveStaticFile(requestPath, res) {
+  let normalizedPath = requestPath === "/" ? "home.html" : path.normalize(requestPath).replace(/^([/\\])+/, "");
+  const filePath = path.join(__dirname, '..', normalizedPath);
+
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    return res.status(404).json({ error: "File not found" });
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = CONTENT_TYPES[ext] || "application/octet-stream";
+
+  res.setHeader('Content-Type', contentType);
+  const content = fs.readFileSync(filePath);
+  res.send(content);
+}
 
 function loadEnvFile(envPath) {
   if (!fs.existsSync(envPath)) {

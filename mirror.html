@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>镜我 | 镜子</title>
+    <style>
+        :root {
+            --canvas: #000000;
+            --surface-soft: #0d0d0d;
+            --surface-card: #141414;
+            --hairline: #262626;
+            --hairline-strong: #3a3a3a;
+            --text-main: #ffffff;
+            --text-body: #cccccc;
+            --text-strong: #e6e6e6;
+            --text-muted: #999999;
+            --text-soft: #666666;
+            --display-font: "Didot", "Bodoni MT", "Times New Roman", serif;
+            --body-font: "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+            --mono-font: "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--canvas);
+            color: var(--text-main);
+            font-family: var(--body-font);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                linear-gradient(to bottom, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 100%),
+                linear-gradient(to right, rgba(255,255,255,0.02) 0, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 100%);
+            background-size: 100% 156px, 25% 100%;
+            pointer-events: none;
+            opacity: 0.45;
+        }
+
+        .page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 36px 24px 96px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .mono {
+            font-family: var(--mono-font);
+            text-transform: uppercase;
+            letter-spacing: 0.28em;
+        }
+
+        .wordmark {
+            font-size: 11px;
+            color: var(--text-main);
+            margin: 0;
+        }
+
+        /* 顶部菜单栏 */
+        .top-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            background: var(--surface-card);
+            border-bottom: 1px solid var(--hairline);
+            overflow: hidden;
+            transition: height 0.3s ease;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 48px;
+        }
+
+        .top-menu.show {
+            height: 48px;
+        }
+
+        .top-menu-trigger {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            z-index: 9999;
+            cursor: ns-resize;
+        }
+
+        .top-menu-link {
+            color: var(--text-muted);
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: color 0.2s ease;
+            cursor: pointer;
+        }
+
+        .top-menu-link:hover {
+            color: var(--text-main);
+        }
+
+        /* 页面头部 */
+        .header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 32px;
+            align-items: start;
+            padding-bottom: 28px;
+            border-bottom: 1px solid var(--hairline);
+            margin-bottom: 32px;
+        }
+
+        .title-kicker {
+            margin: 28px 0 14px;
+            color: var(--text-muted);
+            font-size: 10px;
+        }
+
+        .title {
+            margin: 0;
+            font-family: var(--display-font);
+            font-size: clamp(2.8rem, 7vw, 5.7rem);
+            font-weight: 400;
+            line-height: 1.1;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            max-width: 9ch;
+        }
+
+        .lead {
+            max-width: 42rem;
+            margin: 22px 0 0;
+            color: var(--text-body);
+            line-height: 1.9;
+            font-size: 1rem;
+        }
+
+        .portrait-panel {
+            padding-left: 8px;
+        }
+
+        .avatar-btn {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 5;
+            border: 1px solid var(--hairline);
+            background: var(--surface-soft);
+            overflow: hidden;
+            cursor: pointer;
+            transition: opacity 0.25s ease;
+        }
+
+        .avatar-btn:hover {
+            opacity: 0.92;
+        }
+
+        .avatar-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(0.08) contrast(1.08) brightness(0.9);
+        }
+
+        /* 镜子切换 */
+        /* 镜子介绍 */
+        .mirror-intro {
+            text-align: left;
+            padding: 0 0 20px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            min-height: 24px;
+        }
+
+        .mirror-tabs {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--hairline);
+            padding-bottom: 16px;
+        }
+
+        .mirror-tab {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-family: var(--mono-font);
+            font-size: 12px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            cursor: pointer;
+            padding: 12px 0;
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .mirror-tab.active {
+            color: var(--text-main);
+        }
+
+        .mirror-tab::after {
+            content: '';
+            position: absolute;
+            bottom: -17px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--text-main);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .mirror-tab.active::after {
+            transform: scaleX(1);
+        }
+
+        .mirror-tab:hover {
+            color: var(--text-main);
+        }
+
+        /* 镜子容器 */
+        .mirror-container {
+            display: none;
+            min-height: 60vh;
+        }
+
+        .mirror-container.active {
+            display: block;
+        }
+
+        /* 三棱镜样式 */
+        /* 三棱镜容器 */
+        .prism-container {
+            width: 100%;
+            perspective: 2000px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+
+        /* 三棱镜主体 */
+        .prism-main {
+            display: flex;
+            gap: 32px;
+            align-items: stretch;
+            height: 400px;
+        }
+
+        .prism-rotator {
+            width: 400px;
+            position: relative;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            perspective: 1500px;
+        }
+
+        .prism-faces-wrapper {
+            width: 100%;
+            height: 300px;
+            position: relative;
+        }
+
+        .prism-faces {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            transform-style: preserve-3d;
+            transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .prism-faces .prism-face-image {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            backface-visibility: visible;
+            -webkit-backface-visibility: visible;
+            background: var(--surface-card);
+            border: 1px solid var(--hairline);
+        }
+
+        .prism-faces .prism-face-image:nth-child(1) {
+            transform: rotateY(0deg) translateZ(115px);
+        }
+
+        .prism-faces .prism-face-image:nth-child(2) {
+            transform: rotateY(120deg) translateZ(115px);
+        }
+
+        .prism-faces .prism-face-image:nth-child(3) {
+            transform: rotateY(240deg) translateZ(115px);
+        }
+
+        .prism-faces.rotate-0 {
+            transform: rotateY(0deg);
+        }
+
+        .prism-faces.rotate-1 {
+            transform: rotateY(-120deg);
+        }
+
+        .prism-faces.rotate-2 {
+            transform: rotateY(-240deg);
+        }
+
+        .prism-nav {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .prism-faces .prism-face-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: filter 0.5s ease;
+        }
+
+        .prism-content {
+            width: 500px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-height: 300px;
+        }
+
+        .prism-text {
+            color: var(--text-body);
+            font-size: 1rem;
+            line-height: 1.9;
+            white-space: pre-line;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .prism-content.empty {
+            justify-content: center;
+            align-items: center;
+            color: var(--text-muted);
+        }
+
+        .prism-content.has-content {
+            justify-content: flex-start;
+        }
+
+        .prism-content .mark-btn {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+        }
+
+        .prism-title {
+            font-family: var(--display-font);
+            font-size: 1.4rem;
+            letter-spacing: 0.1em;
+            color: var(--text-main);
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--hairline);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* 标记按钮 */
+        .mark-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+            background: transparent;
+            border: 1px solid var(--hairline);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+            z-index: 100;
+            pointer-events: auto;
+        }
+
+        .mark-btn:hover {
+            border-color: var(--text-main);
+            color: var(--text-main);
+            transform: scale(1.1);
+        }
+
+        .mark-btn.marked {
+            background: var(--surface-soft);
+            border-color: var(--text-main);
+            color: var(--text-main);
+        }
+
+        .mark-btn.marked::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 1px solid var(--text-main);
+            animation: markPulse 0.5s ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes markPulse {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+
+        /* 三棱镜滤镜效果 */
+        .prism-faces .prism-face-image:nth-child(1) img {
+            filter: sepia(0.35) saturate(1.8) contrast(1.3) brightness(1.1) hue-rotate(-10deg);
+        }
+
+        .prism-faces .prism-face-image:nth-child(2) img {
+            filter: grayscale(0.5) contrast(1.4) brightness(0.85) saturate(0.7) hue-rotate(15deg);
+        }
+
+        .prism-faces .prism-face-image:nth-child(3) img {
+            filter: grayscale(0.7) brightness(1.3) contrast(0.85) saturate(0.5) blur(0.5px);
+        }
+
+        /* 三棱镜容器 */
+        .prism-nav-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--surface-card);
+            border: 1px solid var(--hairline);
+            color: var(--text-muted);
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .prism-nav-btn:hover {
+            border-color: var(--text-main);
+            color: var(--text-main);
+        }
+
+        .prism-nav-btn.active {
+            background: var(--surface-soft);
+            border-color: var(--text-main);
+            color: var(--text-main);
+        }
+
+        .prism-empty {
+            color: var(--text-muted);
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* 反光镜样式 */
+        .reflective-container {
+            display: flex;
+            gap: 32px;
+            align-items: stretch;
+            height: 400px;
+        }
+
+        .mirror-frame {
+            width: 400px;
+            position: relative;
+            perspective: 1000px;
+            flex-shrink: 0;
+        }
+
+        .mirror-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .mirror-inner.flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* 镜子反光动画 */
+        @keyframes mirrorShine {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 200%;
+            }
+        }
+
+        .mirror-face::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.15),
+                rgba(255, 220, 180, 0.25),
+                rgba(255, 255, 255, 0.15),
+                transparent
+            );
+            pointer-events: none;
+            animation: mirrorShine 0.6s ease-out forwards paused;
+        }
+
+        .mirror-face.flipping::after {
+            animation-play-state: running;
+        }
+
+        .mirror-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border: 1px solid var(--hairline);
+            background: var(--surface-card);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mirror-face img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(0.08) contrast(1.08) brightness(0.9);
+        }
+
+        .mirror-face.back {
+            transform: rotateY(180deg);
+        }
+
+        .mirror-label {
+            position: absolute;
+            top: 16px;
+            left: 20px;
+            font-family: var(--mono-font);
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            z-index: 10;
+        }
+
+        .mirror-switch-btn {
+            position: relative;
+            background: var(--surface-card);
+            border: 1px solid var(--hairline);
+            border-radius: 999px;
+            width: auto;
+            min-width: 60px;
+            height: 40px;
+            padding: 0 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-family: var(--mono-font);
+            letter-spacing: 0.15em;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .mirror-switch-btn:hover {
+            border-color: var(--text-main);
+            color: var(--text-main);
+        }
+
+        /* 反光镜文案区域 */
+        .reflective-content {
+            flex: 1;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface-card);
+            border: 1px solid var(--hairline);
+            position: relative;
+        }
+
+        .reflective-content .reflective-title {
+            font-family: var(--display-font);
+            font-size: 1.2rem;
+            letter-spacing: 0.1em;
+            color: var(--text-main);
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--hairline);
+        }
+
+        .reflective-content .reflective-text {
+            color: var(--text-body);
+            font-size: 1rem;
+            line-height: 1.9;
+            white-space: pre-line;
+        }
+
+        .reflective-content .reflective-text.original {
+            color: var(--text-muted);
+        }
+
+        .reflective-content .reflective-text.positive {
+            color: var(--text-main);
+        }
+
+        .reflective-content .mark-btn {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+        }
+
+        #positiveImgLoading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface-soft);
+            z-index: 5;
+        }
+
+        /* 加载状态 */
+        .loading {
+            color: var(--text-muted);
+            font-family: var(--mono-font);
+            font-size: 12px;
+            letter-spacing: 0.2em;
+        }
+
+        /* 按钮 */
+        .action-btn {
+            appearance: none;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.88);
+            background: transparent;
+            color: var(--text-main);
+            font-family: var(--mono-font);
+            font-size: 12px;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            padding: 15px 30px;
+            cursor: pointer;
+            transition: background 0.25s ease, color 0.25s ease, opacity 0.25s ease;
+        }
+
+        .action-btn:hover {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .action-btn:disabled {
+            opacity: 0.45;
+            cursor: wait;
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: var(--surface-card);
+            border: 1px solid var(--hairline);
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-family: var(--display-font);
+            font-size: 1.2rem;
+            letter-spacing: 0.1em;
+            margin-bottom: 16px;
+        }
+
+        .modal-input {
+            width: 100%;
+            background: var(--surface-soft);
+            border: 1px solid var(--hairline);
+            color: var(--text-main);
+            font-family: var(--body-font);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--text-muted);
+        }
+
+        .modal-input::placeholder {
+            color: var(--text-soft);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 10px 24px;
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            border: 1px solid var(--hairline);
+            background: transparent;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .modal-btn:hover {
+            border-color: var(--text-muted);
+            color: var(--text-main);
+        }
+
+        .modal-btn.primary {
+            border-color: var(--text-main);
+        }
+
+        .modal-btn.primary:hover {
+            background: var(--text-main);
+            color: var(--canvas);
+        }
+
+        /* 标记统计区域 */
+        .marked-stats {
+            margin-top: 20px;
+            padding: 12px 16px;
+            cursor: pointer;
+        }
+
+        .marked-stats:hover {
+            opacity: 0.8;
+        }
+
+        .marked-stats-title {
+            font-family: var(--mono-font);
+            font-size: 9px;
+            letter-spacing: 0.15em;
+            color: var(--text-soft);
+            margin-bottom: 8px;
+        }
+
+        .marked-stats-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .marked-stats-item {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .marked-stats-item:hover {
+            color: var(--text-main);
+            background: var(--hairline-strong);
+        }
+
+        .marked-stats-item-icon {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .marked-stats-item-text {
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 屈光镜样式 */
+        .refraction-container {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            padding: 20px 0;
+        }
+
+        .refraction-aspects {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .refraction-aspect {
+            background: var(--surface-card);
+            border: 1px solid var(--hairline);
+            padding: 20px 28px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .refraction-aspect:hover {
+            border-color: var(--text-muted);
+        }
+
+        .refraction-aspect.active {
+            border-color: var(--text-main);
+            background: var(--surface-soft);
+        }
+
+        .refraction-aspect .aspect-icon {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+
+        .refraction-aspect .aspect-name {
+            font-family: var(--mono-font);
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            color: var(--text-body);
+        }
+
+        .refraction-aspect.active .aspect-name {
+            color: var(--text-main);
+        }
+
+        .refraction-content {
+            min-height: 400px;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .refraction-view-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 24px 32px 20px;
+            border-bottom: 1px solid var(--hairline);
+        }
+
+        .refraction-view-icon {
+            font-size: 28px;
+        }
+
+        .refraction-view-title {
+            font-family: var(--display-font);
+            font-size: 22px;
+            letter-spacing: 0.1em;
+        }
+
+        .refraction-lens-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            min-height: 300px;
+        }
+
+        .refraction-lens {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            gap: 0;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .refraction-view-image {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            min-height: 280px;
+            transition: all 0.5s ease;
+        }
+
+        .refraction-view-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: filter 0.5s ease, transform 0.5s ease;
+        }
+
+        /* 屈光镜畸变效果 */
+        .refraction-lens.distort-id .refraction-view-image img {
+            filter: url('#fisheye-expand') saturate(1.8) contrast(1.4) brightness(1.1) hue-rotate(-5deg);
+            transform: scale(1.15);
+        }
+
+        .refraction-lens.distort-ego .refraction-view-image img {
+            filter: none;
+            transform: scale(1);
+        }
+
+        .refraction-lens.distort-superego .refraction-view-image img {
+            filter: url('#fisheye-shrink') saturate(0.5) brightness(1.35) contrast(0.85) hue-rotate(10deg);
+            transform: scale(0.9);
+        }
+
+        .refraction-view-text {
+            flex: 1;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-left: 1px solid var(--hairline);
+        }
+
+        .refraction-view-text p {
+            color: var(--text-body);
+            font-size: 1rem;
+            line-height: 1.9;
+            margin: 0;
+        }
+
+        .refraction-empty {
+            color: var(--text-muted);
+            text-align: center;
+            padding: 0;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+            }
+
+            .prism-faces {
+                flex-direction: row;
+                flex-wrap: wrap;
+                min-width: auto;
+            }
+
+            .prism-face {
+                flex: 1;
+                min-width: 120px;
+                text-align: center;
+            }
+
+            .mirror-frame {
+                width: 100%;
+                max-width: 360px;
+            }
+
+            .refraction-aspects {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .refraction-aspect {
+                width: 100%;
+                max-width: 280px;
+            }
+        }
+    </style>
+</head>
+<body>
+<svg style="display:none;">
+  <defs>
+    <filter id="fisheye-expand" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" in="blur" result="goo"/>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop" result="combined"/>
+      <feDisplacementMap in="SourceGraphic" in2="goo" scale="30" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="fisheye-shrink" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" in="blur" result="goo"/>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop" result="combined"/>
+      <feDisplacementMap in="SourceGraphic" in2="goo" scale="-25" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+    <div class="top-menu" id="topMenu">
+        <p class="wordmark mono" onclick="location.href='index.html'" style="cursor: pointer;">Mirror Self</p>
+        <span class="top-menu-link" onclick="location.href='archive.html'">镜子仓库</span>
+    </div>
+    <div class="top-menu-trigger" id="topMenuTrigger"></div>
+
+    <div class="page">
+        <!-- 返回按钮 -->
+        <div style="margin-bottom: 16px;">
+            <a href="start.html" style="color: var(--text-muted); font-family: var(--mono-font); font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; text-decoration: none; transition: color 0.2s ease;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">← 返回显影</a>
+        </div>
+
+        <!-- 头部 -->
+        <header class="header">
+            <div>
+                <p class="title-kicker mono">Phase 02</p>
+                <h1 class="title">镜子</h1>
+                <p id="vibeDisplay" class="lead"></p>
+                <div id="markedStats" class="marked-stats hidden">
+                    <div class="marked-stats-title">已标记的有触动想法</div>
+                    <div class="marked-stats-items" id="markedStatsItems"></div>
+                </div>
+            </div>
+
+            <aside class="portrait-panel">
+                <div onclick="location.href='start.html'" class="avatar-btn">
+                    <img id="baseAvatar" src="" alt="原始镜像">
+                </div>
+            </aside>
+        </header>
+
+        <!-- 镜子切换标签 -->
+        <div class="mirror-tabs">
+            <button class="mirror-tab active" data-mirror="prism">三棱镜</button>
+            <button class="mirror-tab" data-mirror="reflective">反光镜</button>
+            <button class="mirror-tab" data-mirror="refraction">屈光镜</button>
+        </div>
+        
+        <!-- 镜子介绍 -->
+        <div class="mirror-intro" id="mirrorIntro">
+            <p class="intro-text">基于对话自我理论，看见内心多面的声音和诉求。</p>
+        </div>
+
+        <!-- 三棱镜 -->
+        <div class="mirror-container active" id="prismMirror">
+            <div class="prism-container">
+                <div class="prism-nav hidden" id="prismNav">
+                    <!-- 导航按钮将由 JS 动态生成 -->
+                </div>
+                <div class="prism-empty" id="prismEmpty">
+                    <button class="action-btn" onclick="loadPerspectives()">使用三棱镜</button>
+                </div>
+                <div class="prism-main hidden" id="prismMain">
+                    <!-- 三棱镜的面将由 JS 动态生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 反光镜 -->
+        <div class="mirror-container" id="reflectiveMirror">
+            <div class="reflective-container">
+                <div class="mirror-frame">
+                    <div class="mirror-inner" id="mirrorInner">
+                        <div class="mirror-face front">
+                            <span class="mirror-label">原始表达</span>
+                            <img id="mirrorFrontImg" src="" alt="原始镜像">
+                        </div>
+                        <div class="mirror-face back">
+                            <span class="mirror-label">积极视角</span>
+                            <img id="mirrorBackImg" src="" alt="积极镜像">
+                            <div id="positiveImgLoading" style="display:none;">
+                                <span class="loading">生成中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="reflective-content">
+                    <div class="reflective-title" id="reflectiveTitle">原始表达</div>
+                    <div class="reflective-text original" id="originalText"></div>
+                    <button id="reflectiveMarkBtn" class="mark-btn">
+                        ◓
+                    </button>
+                </div>
+                <button class="mirror-switch-btn" onclick="toggleMirror()" title="翻转镜子">翻转</button>
+            </div>
+        </div>
+
+        <!-- 屈光镜 -->
+        <div class="mirror-container" id="refractionMirror">
+            <div class="refraction-container">
+                <div class="refraction-aspects hidden" id="refractionAspects">
+                    <div class="refraction-aspect" data-aspect="id">
+                        <div class="aspect-icon">🔥</div>
+                        <div class="aspect-name">本我</div>
+                    </div>
+                    <div class="refraction-aspect" data-aspect="ego">
+                        <div class="aspect-icon">⚖️</div>
+                        <div class="aspect-name">自我</div>
+                    </div>
+                    <div class="refraction-aspect" data-aspect="superego">
+                        <div class="aspect-icon">✨</div>
+                        <div class="aspect-name">超我</div>
+                    </div>
+                </div>
+                <div class="refraction-content">
+                    <div class="refraction-empty" id="refractionEmpty">
+                        <button class="action-btn" onclick="loadRefraction()">使用屈光镜</button>
+                    </div>
+                    <div class="refraction-lens-container hidden" id="refractionLensContainer">
+                        <div class="refraction-lens distort-id" id="refractionLens0">
+                            <div class="refraction-view-image">
+                                <img src="" alt="本我">
+                            </div>
+                            <button id="refractionMarkBtn0" class="mark-btn hidden" onclick="toggleMark(event, 'refraction', 0, '本我')">
+                                ◓
+                            </button>
+                            <div class="refraction-view-text">
+                                <p id="refractionText0"></p>
+                            </div>
+                        </div>
+                        <div class="refraction-lens distort-ego" id="refractionLens1" style="transform: translateX(100%);">
+                            <div class="refraction-view-image">
+                                <img src="" alt="自我">
+                            </div>
+                            <button id="refractionMarkBtn1" class="mark-btn hidden" onclick="toggleMark(event, 'refraction', 1, '自我')">
+                                ◓
+                            </button>
+                            <div class="refraction-view-text">
+                                <p id="refractionText1"></p>
+                            </div>
+                        </div>
+                        <div class="refraction-lens distort-superego" id="refractionLens2" style="transform: translateX(200%);">
+                            <div class="refraction-view-image">
+                                <img src="" alt="超我">
+                            </div>
+                            <button id="refractionMarkBtn2" class="mark-btn hidden" onclick="toggleMark(event, 'refraction', 2, '超我')">
+                                ◓
+                            </button>
+                            <div class="refraction-view-text">
+                                <p id="refractionText2"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for mirror functions
+        let baseVibe = '';
+        let baseImg = '';
+        let baseVisualPrompt = '';
+        let perspectives = [];
+        let positivePortraitUrl = '';
+        let positiveTextContent = '';
+        let isFlipped = false;
+        let refractionData = null;
+        let currentAspectIndex = 0;
+        let sessionId = ''; // 当前会话ID，用于隔离标记
+
+        // 标记功能相关变量
+        let currentMarkId = null;
+        let currentMarkType = null;
+        let currentMarkIndex = null;
+        let currentMarkTitle = null;
+
+        // 生成简单的会话ID
+        function generateSessionId(content) {
+            let hash = 0;
+            for (let i = 0; i < content.length; i++) {
+                const char = content.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            return Math.abs(hash).toString(36);
+        }
+
+        // 三棱镜
+        async function loadPerspectives() {
+            // 检查是否已有保存的内容
+            const savedPrism = localStorage.getItem('prism_content');
+            if (savedPrism) {
+                try {
+                    const prismData = JSON.parse(savedPrism);
+                    perspectives = prismData; // 设置全局变量
+                    renderPrism(prismData);
+                    return;
+                } catch (e) {
+                    localStorage.removeItem('prism_content');
+                }
+            }
+
+            const emptyEl = document.getElementById('prismEmpty');
+            const mainEl = document.getElementById('prismMain');
+            const navEl = document.getElementById('prismNav');
+
+            emptyEl.innerHTML = '<p><span class="loading">正在分解视角...</span></p>';
+
+            try {
+                const res = await fetch('/api/analyze-theater', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input: baseVibe })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "视角分析失败");
+
+                // 解析视角
+                const content = data.content;
+                const matches = [...content.matchAll(/【(.*?)】([\s\S]*?)(?=【|$)/g)];
+
+                perspectives = matches.map(m => {
+                    const [name, icon, filter] = m[1].split('|');
+                    let text = m[2].trim();
+                    // 删除所有*号，并让关键信息换行
+                    text = text.replace(/\*/g, '');
+                    text = text.replace(/([：:])/g, '$1\n');
+                    text = text.replace(/([，。；；])/g, '$1\n');
+                    text = text.split('\n').map(line => line.trim()).filter(line => line).join('\n');
+
+                    // 标准化滤镜名称
+                    let normalizedFilter = 'pioneer';
+                    if (filter) {
+                        const f = filter.toLowerCase().trim();
+                        if (f.includes('navig') || f.includes('理性') || f.includes('硬核')) {
+                            normalizedFilter = 'navigator';
+                        } else if (f.includes('observ') || f.includes('全局') || f.includes('虚化')) {
+                            normalizedFilter = 'observer';
+                        } else if (f === 'pioneer' || f.includes('激进') || f.includes('情感')) {
+                            normalizedFilter = 'pioneer';
+                        }
+                    }
+
+                    return {
+                        name: name || '视角',
+                        icon: icon || '✦',
+                        filter: normalizedFilter,
+                        text: text
+                    };
+                });
+
+                // 确保至少有3个视角
+                while (perspectives.length < 3) {
+                    perspectives.push({
+                        name: `视角 ${perspectives.length + 1}`,
+                        icon: '✦',
+                        filter: perspectives.length % 3 === 0 ? 'pioneer' : (perspectives.length % 3 === 1 ? 'navigator' : 'observer'),
+                        text: '...'
+                    });
+                }
+
+                // 保存到 localStorage
+                localStorage.setItem('prism_content', JSON.stringify(perspectives));
+
+                renderPrism(perspectives);
+
+            } catch (e) {
+                emptyEl.innerHTML = '<p>加载失败，请重试</p><button class="action-btn" onclick="loadPerspectives()">重新加载</button>';
+            }
+        }
+
+        function renderPrism(perspectives) {
+            const emptyEl = document.getElementById('prismEmpty');
+            const mainEl = document.getElementById('prismMain');
+            const navEl = document.getElementById('prismNav');
+
+            // 加载标记状态
+            const markedItems = JSON.parse(localStorage.getItem('marked_items') || '{}');
+
+            // 生成三棱镜的图片面
+            const prismFaces = perspectives.slice(0, 3).map((p, i) => `
+                <div class="prism-face-image">
+                    <img src="${baseImg}" alt="${p.name}">
+                </div>
+            `).join('');
+
+            // 生成导航按钮
+            navEl.innerHTML = perspectives.slice(0, 3).map((p, i) => `
+                <button class="prism-nav-btn ${i === 0 ? 'active' : ''}" data-index="${i}" title="${p.name}">
+                    ${p.icon}
+                </button>
+            `).join('');
+
+            // 更新文案内容（初始显示第一个视角）
+            updatePrismContent(perspectives[0]);
+
+            // 生成完整的三棱镜布局
+            mainEl.innerHTML = `
+                <div class="prism-rotator">
+                    <div class="prism-faces-wrapper">
+                        <div class="prism-faces rotate-0" id="prismFaces">
+                            ${prismFaces}
+                        </div>
+                    </div>
+                    <div class="prism-nav" id="prismNavInner">
+                        ${navEl.innerHTML}
+                    </div>
+                </div>
+                <div class="prism-content has-content">
+                    <div class="prism-title">
+                        <span id="prismIcon">${perspectives[0].icon}</span>
+                        <span id="prismTitle">${perspectives[0].name}</span>
+                    </div>
+                    <div class="prism-text" id="prismText">${perspectives[0].text}</div>
+                    <button id="prismMarkBtn" class="mark-btn" onclick="toggleMark(event, 'prism', 0, '${perspectives[0].icon} ${perspectives[0].name}')">
+                        ${markedItems[`${sessionId}-prism-0`]?.marked ? '✓' : '◓'}
+                    </button>
+                </div>
+            `;
+
+            // 绑定导航按钮点击事件
+            mainEl.querySelectorAll('.prism-nav-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const index = parseInt(btn.dataset.index);
+                    rotatePrism(index);
+                });
+            });
+
+            // 显示三棱镜
+            emptyEl.classList.add('hidden');
+            mainEl.classList.remove('hidden');
+
+            updateMarkedStats();
+        }
+
+        function updatePrismContent(perspective) {
+            const iconEl = document.getElementById('prismIcon');
+            const titleEl = document.getElementById('prismTitle');
+            const textEl = document.getElementById('prismText');
+            const markBtn = document.getElementById('prismMarkBtn');
+
+            if (iconEl) iconEl.textContent = perspective.icon;
+            if (titleEl) titleEl.textContent = perspective.name;
+            if (textEl) textEl.textContent = perspective.text;
+
+            // 更新标记按钮
+            if (markBtn) {
+                const markedItems = JSON.parse(localStorage.getItem('marked_items') || '{}');
+                // 找到当前视角的索引
+                const currentIndex = perspectives.findIndex(p => p.name === perspective.name);
+                const isMarked = markedItems[`${sessionId}-prism-${currentIndex}`]?.marked;
+                markBtn.className = `mark-btn ${isMarked ? 'marked' : ''}`;
+                markBtn.textContent = isMarked ? '✓' : '◓';
+            }
+        }
+
+        function rotatePrism(index) {
+            if (index < 0 || index >= perspectives.length) return;
+
+            // 旋转三棱镜
+            const facesEl = document.getElementById('prismFaces');
+            if (facesEl) {
+                facesEl.className = 'prism-faces';
+                facesEl.classList.add(`rotate-${index}`);
+            }
+
+            // 更新右侧文案
+            updatePrismContent(perspectives[index]);
+
+            // 更新标记按钮
+            const markBtn = document.getElementById('prismMarkBtn');
+            if (markBtn) {
+                const markedItems = JSON.parse(localStorage.getItem('marked_items') || '{}');
+                const isMarked = markedItems[`${sessionId}-prism-${index}`]?.marked;
+                markBtn.className = `mark-btn ${isMarked ? 'marked' : ''}`;
+                markBtn.textContent = isMarked ? '✓' : '◓';
+                markBtn.onclick = (e) => toggleMark(e, 'prism', index, `${perspectives[index].icon} ${perspectives[index].name}`);
+            }
+
+            // 更新导航按钮状态
+            document.querySelectorAll('.prism-nav-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+        }
+
+        // 反光镜
+        async function loadPositivePortrait() {
+            // 检查是否已有保存的内容
+            const savedReflective = localStorage.getItem('reflective_content');
+            if (savedReflective) {
+                try {
+                    const reflectiveData = JSON.parse(savedReflective);
+                    positivePortraitUrl = reflectiveData.imageUrl;
+                    positiveTextContent = reflectiveData.textContent;
+
+                    // 显示保存的内容
+                    document.getElementById('mirrorBackImg').src = positivePortraitUrl;
+
+                    return;
+                } catch (e) {
+                    localStorage.removeItem('reflective_content');
+                }
+            }
+
+            if (positivePortraitUrl) return; // 已生成
+
+            try {
+                // 获取积极视角文字
+                const textRes = await fetch('/api/positive-rewrite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input: baseVibe })
+                });
+                console.log('Positive rewrite response:', textRes.status, textRes.statusText);
+                const textData = await textRes.json();
+                console.log('Positive rewrite data:', textData);
+                if (!textRes.ok) throw new Error(textData.error || "重写失败");
+
+                positiveTextContent = textData.content;
+
+                // 基于原图生成积极版本（使用图生图保持构图）
+                const imgRes = await fetch('/api/modify-portrait', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        imageUrl: baseImg,
+                        positiveText: positiveTextContent
+                    })
+                });
+                const imgData = await imgRes.json();
+                if (!imgRes.ok) throw new Error(imgData.error || "图像生成失败");
+
+                positivePortraitUrl = imgData.imageUrl;
+                document.getElementById('mirrorBackImg').src = positivePortraitUrl;
+
+                // 保存到 localStorage
+                localStorage.setItem('reflective_content', JSON.stringify({
+                    imageUrl: positivePortraitUrl,
+                    textContent: positiveTextContent
+                }));
+
+                // 添加反光动画
+                const backFace = document.querySelector('.mirror-face.back');
+                backFace.classList.add('flipping');
+                setTimeout(() => backFace.classList.remove('flipping'), 600);
+
+            } catch (e) {
+                console.error('积极视角生成失败:', e);
+            }
+        }
+
+        function toggleMirror() {
+            isFlipped = !isFlipped;
+            const inner = document.getElementById('mirrorInner');
+
+            // 翻转镜像
+            inner.classList.toggle('flipped', isFlipped);
+
+            // 首次翻转时生成积极视角图像和文字
+            if (isFlipped && !positivePortraitUrl) {
+                loadPositivePortrait();
+            }
+
+            // 更新右侧文案
+            updateReflectiveContent();
+
+            // 始终显示标记按钮并更新状态
+            const markBtn = document.getElementById('reflectiveMarkBtn');
+            markBtn.classList.remove('hidden');
+            updateReflectiveMarkButton();
+        }
+
+        function updateReflectiveContent() {
+            const titleEl = document.getElementById('reflectiveTitle');
+            const textEl = document.getElementById('originalText');
+
+            if (isFlipped) {
+                titleEl.textContent = '积极视角';
+                textEl.classList.remove('original');
+                textEl.classList.add('positive');
+                textEl.textContent = positiveTextContent || '生成中...';
+            } else {
+                titleEl.textContent = '原始表达';
+                textEl.classList.remove('positive');
+                textEl.classList.add('original');
+                textEl.textContent = baseVibe;
+            }
+            // 更新标记按钮状态
+            updateReflectiveMarkButton();
+        }
+
+        function updateReflectiveMarkButton() {
+            const markBtn = document.getElementById('reflectiveMarkBtn');
+            const markedItems = JSON.parse(localStorage.getItem('marked_items') || '{}');
+            // 根据当前翻转状态使用不同的索引
+            const index = isFlipped ? 1 : 0;
+            const title = isFlipped ? '积极视角' : '原始表达';
+            const isMarked = markedItems[`${sessionId}-reflective-${index}`]?.marked;
+
+            if (isMarked) {
+                markBtn.classList.add('marked');
+                markBtn.textContent = '✓';
+            } else {
+                markBtn.classList.remove('marked');
+                markBtn.textContent = '◓';
+            }
+            // 更新onclick事件以传递正确的标题
+            markBtn.onclick = (e) => toggleMark(e, 'reflective', index, title);
+        }
+
+        // 屈光镜
+        async function loadRefraction() {
+            // 检查是否已有保存的内容
+            const savedRefraction = localStorage.getItem('refraction_content');
+            if (savedRefraction) {
+                try {
+                    const refractionData = JSON.parse(savedRefraction);
+                    renderRefraction(refractionData);
+                    return;
+                } catch (e) {
+                    localStorage.removeItem('refraction_content');
+                }
+            }
+
+            const emptyEl = document.getElementById('refractionEmpty');
+            const containerEl = document.getElementById('refractionLensContainer');
+
+            emptyEl.innerHTML = '<p><span class="loading">正在解析心理结构...</span></p>';
+
+            try {
+                const res = await fetch('/api/analyze-theater', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        input: `请以弗洛伊德的本我-自我-超我理论框架分析以下心理状态：${baseVibe}\n\n请从三个维度分别分析：
+1. 【本我】本能欲望、冲动、最原始的诉求
+2. 【自我】现实考量、理性权衡、如何协调冲突
+3. 【超我】道德标准、理想追求、社会规范的要求\n\n格式：【维度|图标】分析内容。
+重要：直接输出分析内容，不要在内容前加"本能欲望："、"现实考量："、"道德与理想："等前缀标签。`
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "分析失败");
+
+                // 解析本我-自我-超我数据
+                const content = data.content;
+                const aspects = {};
+
+                ['本我', '自我', '超我'].forEach(name => {
+                    const regex = new RegExp(`【${name}\\|([^】]+)】([\\s\\S]*?)(?=【|$)`);
+                    const match = content.match(regex);
+                    if (match) {
+                        let text = match[2].trim();
+                        // 移除可能的前缀标签
+                        text = text.replace(/^(本能欲望|现实考量|道德与理想|道德标准|理想追求)[：:]\s*/g, '');
+                        aspects[name] = {
+                            icon: match[1] || '◆',
+                            text: text
+                        };
+                    }
+                });
+
+                // 补充默认值
+                const aspectMap = {
+                    '本我': aspects['本我'] || { icon: '🔥', text: '感知内心的原始冲动与本能欲望' },
+                    '自我': aspects['自我'] || { icon: '⚖️', text: '理解现实中如何平衡各种诉求' },
+                    '超我': aspects['超我'] || { icon: '✨', text: '认识内在的道德标准与理想追求' }
+                };
+
+                refractionData = aspectMap;
+
+                // 保存到 localStorage
+                localStorage.setItem('refraction_content', JSON.stringify(aspectMap));
+
+                renderRefraction(aspectMap);
+
+            } catch (e) {
+                emptyEl.innerHTML = '<p>加载失败，请重试</p><button class="action-btn" onclick="loadRefraction()">重新加载</button>';
+            }
+        }
+
+        function renderRefraction(refractionData) {
+            const emptyEl = document.getElementById('refractionEmpty');
+            const containerEl = document.getElementById('refractionLensContainer');
+
+            // 设置三个镜片的内容
+            const keys = ['本我', '自我', '超我'];
+            keys.forEach((key, i) => {
+                const lensEl = document.getElementById(`refractionLens${i}`);
+                const imgEl = lensEl.querySelector('.refraction-view-image img');
+                const textEl = document.getElementById(`refractionText${i}`);
+                const markBtn = document.getElementById(`refractionMarkBtn${i}`);
+                imgEl.src = baseImg;
+                textEl.innerText = refractionData[key].text;
+
+                // 显示并更新标记按钮
+                markBtn.classList.remove('hidden');
+                updateRefractionMarkButton(i, key);
+            });
+
+            // 绑定点击事件
+            document.querySelectorAll('.refraction-aspect').forEach(aspectEl => {
+                aspectEl.addEventListener('click', () => {
+                    const aspectKey = aspectEl.dataset.aspect;
+                    const index = aspectKey === 'id' ? 0 : (aspectKey === 'ego' ? 1 : 2);
+
+                    document.querySelectorAll('.refraction-aspect').forEach(a => a.classList.remove('active'));
+                    aspectEl.classList.add('active');
+
+                    switchLens(index);
+                });
+            });
+
+            emptyEl.classList.add('hidden');
+            containerEl.classList.remove('hidden');
+            document.getElementById('refractionAspects').classList.remove('hidden');
+
+            // 显示第一个镜片
+            switchLens(0);
+            document.querySelector('.refraction-aspect[data-aspect="id"]').classList.add('active');
+        }
+
+        function updateRefractionMarkButton(index, title) {
+            const markBtn = document.getElementById(`refractionMarkBtn${index}`);
+            const markedItems = JSON.parse(localStorage.getItem('marked_items') || '{}');
+            const markId = `${sessionId}-refraction-${index}`;
+            const isMarked = markedItems[markId]?.marked;
+
+            if (isMarked) {
+                markBtn.classList.add('marked');
+                markBtn.textContent = '✓';
+            } else {
+                markBtn.classList.remove('marked');
+                markBtn.textContent = '◓';
+            }
+        }
+
+        function switchLens(index) {
+            if (index < 0 || index > 2) return;
+            currentAspectIndex = index;
+
+            // 滑动所有镜片
+            for (let i = 0; i < 3; i++) {
+                const lensEl = document.getElementById(`refractionLens${i}`);
+                if (lensEl) {
+                    lensEl.style.transform = `translateX(${(i - index) * 100}%)`;
+                }
+            }
+
+            // 更新下方按钮的active状态
+            const aspectKeys = ['id', 'ego', 'superego'];
+            document.querySelectorAll('.refraction-aspect').forEach(aspectEl => {
+                aspectEl.classList.remove('active');
+            });
+            const activeBtn = document.querySelector(`.refraction-aspect[data-aspect="${aspectKeys[index]}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            baseVibe = localStorage.getItem('user_vibe') || '';
+            baseImg = localStorage.getItem('user_portrait') || '';
+            baseVisualPrompt = localStorage.getItem('user_visual_prompt') || '';
+
+            if (!baseVibe) {
+                location.href = 'start.html';
+            }
+
+            // 生成会话ID（基于内容）
+            sessionId = generateSessionId(baseVibe + baseImg);
+
+            // 显示头像和文字
+            document.getElementById('baseAvatar').src = baseImg;
+            document.getElementById('vibeDisplay').innerText = baseVibe || "暂无底色";
+
+            // 顶部菜单逻辑
+            const menuTrigger = document.getElementById('topMenuTrigger');
+            const topMenu = document.getElementById('topMenu');
+            if (menuTrigger && topMenu) {
+                menuTrigger.addEventListener('mouseenter', () => {
+                    topMenu.classList.add('show');
+                });
+
+                topMenu.addEventListener('mouseenter', () => {
+                    topMenu.classList.add('show');
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (e.clientY > 80) {
+                        topMenu.classList.remove('show');
+                    }
+                });
+            }
+
+            // 镜子切换
+            const mirrorTabs = document.querySelectorAll('.mirror-tab');
+            const mirrorIntro = document.getElementById('mirrorIntro');
+
+            const mirrorDescriptions = {
+                prism: '基于对话自我理论，看见内心多面的声音和诉求。',
+                reflective: '改变叙事方式，在消极中看到积极。',
+                refraction: '透过本我、自我、超我，理解心理结构的深层折射。'
+            };
+
+            mirrorTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    mirrorTabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    const mirrorType = tab.dataset.mirror;
+                    document.querySelectorAll('.mirror-container').forEach(m => m.classList.remove('active'));
+
+                    // 更新镜子介绍
+                    mirrorIntro.querySelector('.intro-text').textContent = mirrorDescriptions[mirrorType];
+
+                    if (mirrorType === 'prism') {
+                        document.getElementById('prismMirror').classList.add('active');
+                    } else if (mirrorType === 'reflective') {
+                        document.getElementById('reflectiveMirror').classList.add('active');
+                    } else if (mirrorType === 'refraction') {
+                        document.getElementById('refractionMirror').classList.add('active');
+                    }
+                });
+            });
+
+            // Initialize mirror front image and text
+            document.getElementById('mirrorFrontImg').src = baseImg;
+            document.getElementById('originalText').innerText = baseVibe;
+
+            // 初始化反光镜标记按钮
+            updateReflectiveMarkButton();
+
+            // 自动加载已保存的三棱镜内容
+            const savedPrism = localStorage.getItem('prism_content');
+            if (savedPrism) {
+                try {
+                    const prismData = JSON.parse(savedPrism);
+                    perspectives = prismData;
+                    renderPrism(prismData);
+                } catch (e) {
+                    localStorage.removeItem('prism_content');
+                }
+            }
+
+            // 自动加载已保存的屈光镜内容
+            const savedRefraction = localStorage.getItem('refraction_content');
+            if (savedRefraction) {
+                try {
+                    const savedRefractionData = JSON.parse(savedRefraction);
+                    refractionData = savedRefractionData;
+                    renderRefraction(savedRefractionData);
+                } catch (e) {
+                    localStorage.removeItem('refraction_content');
+                }
+            }
+
+            // 自动加载已保存的反光镜内容
+            const savedReflective = localStorage.getItem('reflective_content');
+            if (savedReflective) {
+                try {
+                    const reflectiveData = JSON.parse(savedReflective);
+                    positivePortraitUrl = reflectiveData.imageUrl || '';
+                    positiveTextContent = reflectiveData.textContent || '';
+                    document.getElementById('mirrorBackImg').src = positivePortraitUrl;
+                } catch (e) {
+                    localStorage.removeItem('reflective_content');
+                }
+            }
+
+            // 初始化标记统计
+            updateMarkedStats();
+
+            // 页面卸载前保存镜子内容到历史记录
+            window.addEventListener('beforeunload', () => {
+                const history = JSON.parse(localStorage.getItem('mirror_history') || '[]');
+                if (history.length === 0) return;
+
+                // 更新第一条记录（最新的）
+                const prismContent = localStorage.getItem('prism_content');
+                const reflectiveContent = localStorage.getItem('reflective_content');
+                const refractionContent = localStorage.getItem('refraction_content');
+
+                if (prismContent || reflectiveContent || refractionContent) {
+                    history[0].prismData = prismContent ? JSON.parse(prismContent) : null;
+                    history[0].reflectiveData = reflectiveContent ? JSON.parse(reflectiveContent) : null;
+                    history[0].refractionData = refractionContent ? JSON.parse(refractionContent) : null;
+
+                    localStorage.setItem('mirror_history', JSON.stringify(history));
+                }
+            });
+        });
+
+        // 标记功能
+        function toggleMark(event, type, index, title) {
+            console.log('toggleMark called:', { type, index, title, sessionId });
+            event.stopPropagation();
+            const markId = `${sessionId}-${type}-${index}`;
+            const markedItems = JSON.parse(localStorage.getItem('marked_items') || '{}');
+            const isMarked = markedItems[markId]?.marked;
+
+            if (isMarked) {
+                // 取消标记
+                delete markedItems[markId];
+                localStorage.setItem('marked_items', JSON.stringify(markedItems));
+                event.target.classList.remove('marked');
+                event.target.textContent = '◓';
+            } else {
+                // 显示模态框
+                currentMarkId = markId;
+                currentMarkType = type;
+                currentMarkIndex = index;
+                currentMarkTitle = title;
+
+                const modal = document.getElementById('markModal');
+                const input = document.getElementById('markInput');
+                input.value = '';
+                modal.classList.add('show');
+                input.focus();
+            }
+
+            updateMarkedStats();
+        }
+
+        function confirmMark() {
+            const input = document.getElementById('markInput');
+            const note = input.value.trim();
+            const markedItems = JSON.parse(localStorage.getItem('marked_items') || '{}');
+
+            markedItems[currentMarkId] = {
+                marked: true,
+                note: note,
+                title: currentMarkTitle,
+                type: currentMarkType,
+                index: currentMarkIndex,
+                timestamp: Date.now()
+            };
+
+            localStorage.setItem('marked_items', JSON.stringify(markedItems));
+
+            // 更新按钮状态
+            const btn = document.querySelector(`[onclick*="${currentMarkType}"][onclick*="${currentMarkIndex}"].mark-btn`);
+            if (btn) {
+                btn.classList.add('marked');
+                btn.textContent = '✓';
+            }
+
+            closeModal();
+            updateMarkedStats();
+        }
+
+        function cancelMark() {
+            closeModal();
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('markModal');
+            modal.classList.remove('show');
+        }
+
+        function updateMarkedStats() {
+            const markedItems = JSON.parse(localStorage.getItem('marked_items') || '{}');
+            const statsEl = document.getElementById('markedStats');
+            const itemsEl = document.getElementById('markedStatsItems');
+
+            // 只显示当前会话的标记
+            const markedList = Object.entries(markedItems)
+                .filter(([id, item]) => item.marked && id.startsWith(sessionId))
+                .map(([id, item]) => item);
+
+            if (markedList.length === 0) {
+                statsEl.classList.add('hidden');
+                return;
+            }
+
+            statsEl.classList.remove('hidden');
+
+            itemsEl.innerHTML = markedList.map((item, index) => `
+                <div class="marked-stats-item" onclick="navigateToMark('${item.type}', ${item.index})">
+                    <span class="marked-stats-item-icon">${item.marked ? '✓' : ''}</span>
+                    <span class="marked-stats-item-text" title="${item.title}${item.note ? '\n' + item.note : ''}">${item.title}</span>
+                </div>
+            `).join('');
+        }
+
+        function navigateToMark(type, index) {
+            // 切换到对应的镜子
+            const mirrorType = type === 'prism' ? 'prism' : (type === 'reflective' ? 'reflective' : 'refraction');
+            const mirrorTabs = document.querySelectorAll('.mirror-tab');
+
+            mirrorTabs.forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.mirror === mirrorType) {
+                    tab.classList.add('active');
+                }
+            });
+
+            document.querySelectorAll('.mirror-container').forEach(m => m.classList.remove('active'));
+
+            if (mirrorType === 'prism') {
+                document.getElementById('prismMirror').classList.add('active');
+                document.getElementById('mirrorIntro').querySelector('.intro-text').textContent = '基于对话自我理论，看见内心多面的声音和诉求。';
+                rotatePrism(index);
+            } else if (mirrorType === 'reflective') {
+                document.getElementById('reflectiveMirror').classList.add('active');
+                document.getElementById('mirrorIntro').querySelector('.intro-text').textContent = '改变叙事方式，在消极中看到积极。';
+                if (index === 1) {
+                    toggleMirror();
+                }
+            } else if (mirrorType === 'refraction') {
+                document.getElementById('refractionMirror').classList.add('active');
+                document.getElementById('mirrorIntro').querySelector('.intro-text').textContent = '透过本我、自我、超我，理解心理结构的深层折射。';
+                switchLens(index);
+            }
+        }
+
+        // 模态框点击外部关闭
+        document.getElementById('markModal').addEventListener('click', (e) => {
+            if (e.target.id === 'markModal') {
+                closeModal();
+            }
+        });
+
+        // 模态框 ESC 关闭
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+
+    <!-- 标记补充模态框 -->
+    <div class="modal-overlay" id="markModal">
+        <div class="modal-content">
+            <div class="modal-title">标记这个触动</div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;" id="markModalHint">你可以补充自己的想法，或者只是标记它。</p>
+            <textarea class="modal-input" id="markInput" placeholder="写下你的想法（可选）"></textarea>
+            <div class="modal-actions">
+                <button class="modal-btn" onclick="cancelMark()">取消</button>
+                <button class="modal-btn primary" onclick="confirmMark()">确认标记</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

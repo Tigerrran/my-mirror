@@ -1,9 +1,5 @@
 {
   "name": "mirror-self",
   "version": "1.0.0",
-  "private": true,
-  "description": "Thin Node backend for managing third-party AI APIs.",
-  "scripts": {
-    "start": "node server.js"
-  }
+  "private": true
 }

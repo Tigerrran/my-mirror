@@ -300,7 +300,7 @@ function assertText(value, fieldName) {
 }
 
 function serveStaticFile(requestPath, res) {
-  const normalizedPath = requestPath === "/" ? "home.html" : path.normalize(requestPath).replace(/^([/\\])+/, "");
+  const normalizedPath = requestPath === "/" ? "index.html" : path.normalize(requestPath).replace(/^([/\\])+/, "");
   const filePath = path.resolve(ROOT_DIR, normalizedPath);
 
   if (!filePath.startsWith(ROOT_DIR)) {

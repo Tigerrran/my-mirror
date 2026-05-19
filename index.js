@@ -19,8 +19,7 @@ const CONTENT_TYPES = {
   ".webp": "image/webp",
 };
 
-module.exports = async (req, res) => {
-  // CORS headers
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -223,10 +222,9 @@ ${input.trim()}`;
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({ error: error.message || "Server error" });
   }
-};
+}
 
 function serveStaticFile(requestPath, res) {
-  // Root path serves index.html
   const normalizedPath = requestPath === "/" ? "index.html" : path.normalize(requestPath).replace(/^([/\\])+/, "");
   const filePath = path.join(ROOT_DIR, normalizedPath);
 

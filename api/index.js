@@ -232,7 +232,7 @@ ${input.trim()}`;
 };
 
 function serveStaticFile(requestPath, res) {
-  let normalizedPath = requestPath === "/" ? "home.html" : path.normalize(requestPath).replace(/^([/\\])+/, "");
+  let normalizedPath = requestPath === "/" ? "index.html" : path.normalize(requestPath).replace(/^([/\\])+/, "");
   const filePath = path.join(__dirname, '..', normalizedPath);
 
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {

@@ -1,8 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-loadEnvFile(path.join(__dirname, '../.env'));
-
+const ROOT_DIR = __dirname;
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 const SILICONFLOW_API_KEY = process.env.SILICONFLOW_API_KEY || "";
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
@@ -21,6 +20,7 @@ const CONTENT_TYPES = {
 };
 
 module.exports = async (req, res) => {
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -31,9 +31,10 @@ module.exports = async (req, res) => {
 
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    const pathname = url.pathname;
 
-    // API Routes
-    if (req.method === "GET" && url.pathname === "/api/health") {
+    // Health check
+    if (req.method === "GET" && pathname === "/api/health") {
       return res.json({
         ok: true,
         deepseekConfigured: Boolean(DEEPSEEK_API_KEY),
@@ -41,11 +42,11 @@ module.exports = async (req, res) => {
       });
     }
 
-    if (req.method === "POST" && url.pathname === "/api/generate-visual-prompt") {
+    // API Routes
+    if (req.method === "POST" && pathname === "/api/generate-visual-prompt") {
       requireApiKey(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY");
       const { vibe, emotions } = req.body;
       assertText(vibe, "vibe");
-
       const emotionContext = emotions ? `Emotions captured: ${emotions}. ` : "";
 
       const promptData = await proxyJson(DEEPSEEK_URL, DEEPSEEK_API_KEY, {
@@ -53,8 +54,7 @@ module.exports = async (req, res) => {
         messages: [
           {
             role: "system",
-            content:
-              "Create an image prompt in soft crayon style. Base the scene directly on what the user describes. Keep it simple and literal - if they mention a desk, show a desk. If they mention walking, show someone walking. Avoid adding your own interpretation. Human figures should be distant silhouettes or not at all. If humans appear, they must be Chinese/Asian. Under 60 words in English.",
+            content: "Create an image prompt in soft crayon style. Base the scene directly on what the user describes. Keep it simple and literal - if they mention a desk, show a desk. If they mention walking, show someone walking. Avoid adding your own interpretation. Human figures should be distant silhouettes or not at all. If humans appear, they must be Chinese/Asian. Under 60 words in English.",
           },
           { role: "user", content: `${emotionContext}User's description: ${vibe.trim()}` },
         ],
@@ -64,11 +64,10 @@ module.exports = async (req, res) => {
       if (!visualPrompt) {
         throw createHttpError(502, "DeepSeek did not return a visual prompt.");
       }
-
       return res.json({ visualPrompt });
     }
 
-    if (req.method === "POST" && url.pathname === "/api/generate-portrait") {
+    if (req.method === "POST" && pathname === "/api/generate-portrait") {
       requireApiKey(SILICONFLOW_API_KEY, "SILICONFLOW_API_KEY");
       const { prompt } = req.body;
       assertText(prompt, "prompt");
@@ -85,11 +84,10 @@ module.exports = async (req, res) => {
       if (!imageUrl) {
         throw createHttpError(502, "SiliconFlow did not return an image URL.");
       }
-
       return res.json({ imageUrl });
     }
 
-    if (req.method === "POST" && url.pathname === "/api/modify-portrait") {
+    if (req.method === "POST" && pathname === "/api/modify-portrait") {
       requireApiKey(SILICONFLOW_API_KEY, "SILICONFLOW_API_KEY");
       requireApiKey(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY");
       const { imageUrl, positiveText } = req.body;
@@ -133,11 +131,10 @@ Describe in 50 words, English only:`
       if (!positiveImageUrl) {
         throw createHttpError(502, "Image edit failed.");
       }
-
       return res.json({ imageUrl: positiveImageUrl });
     }
 
-    if (req.method === "POST" && url.pathname === "/api/analyze-theater") {
+    if (req.method === "POST" && pathname === "/api/analyze-theater") {
       requireApiKey(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY");
       const { input } = req.body;
       assertText(input, "input");
@@ -166,11 +163,10 @@ Describe in 50 words, English only:`
       if (!content) {
         throw createHttpError(502, "DeepSeek did not return theater analysis.");
       }
-
       return res.json({ content });
     }
 
-    if (req.method === "POST" && url.pathname === "/api/summarize-theater") {
+    if (req.method === "POST" && pathname === "/api/summarize-theater") {
       requireApiKey(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY");
       const { lastPositions } = req.body;
       assertText(lastPositions, "lastPositions");
@@ -197,11 +193,10 @@ ${lastPositions.trim()}
       if (!content) {
         throw createHttpError(502, "DeepSeek did not return summary content.");
       }
-
       return res.json({ content });
     }
 
-    if (req.method === "POST" && url.pathname === "/api/positive-rewrite") {
+    if (req.method === "POST" && pathname === "/api/positive-rewrite") {
       requireApiKey(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY");
       const { input } = req.body;
       assertText(input, "input");
@@ -219,12 +214,11 @@ ${input.trim()}`;
       if (!content) {
         throw createHttpError(502, "DeepSeek did not return rewritten content.");
       }
-
       return res.json({ content });
     }
 
     // Serve static files
-    return serveStaticFile(url.pathname, res);
+    return serveStaticFile(pathname, res);
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({ error: error.message || "Server error" });
@@ -232,8 +226,13 @@ ${input.trim()}`;
 };
 
 function serveStaticFile(requestPath, res) {
-  let normalizedPath = requestPath === "/" ? "index.html" : path.normalize(requestPath).replace(/^([/\\])+/, "");
-  const filePath = path.join(__dirname, '..', normalizedPath);
+  // Root path serves index.html
+  const normalizedPath = requestPath === "/" ? "index.html" : path.normalize(requestPath).replace(/^([/\\])+/, "");
+  const filePath = path.join(ROOT_DIR, normalizedPath);
+
+  if (!filePath.startsWith(ROOT_DIR)) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
 
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
     return res.status(404).json({ error: "File not found" });
@@ -244,32 +243,7 @@ function serveStaticFile(requestPath, res) {
 
   res.setHeader('Content-Type', contentType);
   const content = fs.readFileSync(filePath);
-  res.send(content);
-}
-
-function loadEnvFile(envPath) {
-  if (!fs.existsSync(envPath)) {
-    return;
-  }
-
-  const content = fs.readFileSync(envPath, "utf8");
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
-
-    const separatorIndex = line.indexOf("=");
-    if (separatorIndex === -1) {
-      continue;
-    }
-
-    const key = line.slice(0, separatorIndex).trim();
-    const value = line.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, "");
-    if (key && !process.env[key]) {
-      process.env[key] = value;
-    }
-  }
+  return res.send(content);
 }
 
 async function proxyJson(url, apiKey, payload) {
@@ -287,7 +261,6 @@ async function proxyJson(url, apiKey, payload) {
     const message = data?.error?.message || data?.message || `Upstream request failed with status ${response.status}.`;
     throw createHttpError(response.status, message);
   }
-
   return data;
 }
 

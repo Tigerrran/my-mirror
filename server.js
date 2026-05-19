@@ -1,23 +1,41 @@
-const http = require("http");
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
-const ROOT_DIR = __dirname;
-
-loadEnvFile(path.join(ROOT_DIR, ".env"));
-
-const PORT = Number(process.env.PORT || 3000);
+loadEnvFile(path.join(__dirname, '.env'));
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 const SILICONFLOW_API_KEY = process.env.SILICONFLOW_API_KEY || "";
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const SILICONFLOW_URL = "https://api.siliconflow.cn/v1/images/generations";
 
-const server = http.createServer(async (req, res) => {
+const ROOT_DIR = __dirname;
+
+const CONTENT_TYPES = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+};
+
+module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
-    if (req.method === "GET" && url.pathname === "/health") {
+    // Health check
+    if (req.method === "GET" && url.pathname === "/api/health") {
       return sendJson(res, 200, {
         ok: true,
         deepseekConfigured: Boolean(DEEPSEEK_API_KEY),
@@ -25,9 +43,10 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // API Routes
     if (req.method === "POST" && url.pathname === "/api/generate-visual-prompt") {
       requireApiKey(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY");
-      const { vibe, emotions } = await readJsonBody(req);
+      const { vibe, emotions } = req.body;
       assertText(vibe, "vibe");
 
       const emotionContext = emotions ? `Emotions captured: ${emotions}. ` : "";
@@ -54,7 +73,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/generate-portrait") {
       requireApiKey(SILICONFLOW_API_KEY, "SILICONFLOW_API_KEY");
-      const { prompt } = await readJsonBody(req);
+      const { prompt } = req.body;
       assertText(prompt, "prompt");
 
       const imageData = await proxyJson(SILICONFLOW_URL, SILICONFLOW_API_KEY, {
@@ -76,11 +95,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/modify-portrait") {
       requireApiKey(SILICONFLOW_API_KEY, "SILICONFLOW_API_KEY");
       requireApiKey(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY");
-      const { imageUrl, positiveText } = await readJsonBody(req);
+      const { imageUrl, positiveText } = req.body;
       assertText(imageUrl, "imageUrl");
       assertText(positiveText, "positiveText");
 
-      // 生成积极视角的图像编辑提示词
       const promptRes = await proxyJson(DEEPSEEK_URL, DEEPSEEK_API_KEY, {
         model: "deepseek-chat",
         messages: [{
@@ -107,7 +125,6 @@ Describe in 50 words, English only:`
         throw createHttpError(502, "Failed to generate edit prompt.");
       }
 
-      // 使用 Qwen 图像编辑模型进行图生图
       const imageData = await proxyJson(SILICONFLOW_URL, SILICONFLOW_API_KEY, {
         model: "Qwen/Qwen-Image-Edit",
         prompt: editPrompt,
@@ -125,7 +142,7 @@ Describe in 50 words, English only:`
 
     if (req.method === "POST" && url.pathname === "/api/analyze-theater") {
       requireApiKey(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY");
-      const { input } = await readJsonBody(req);
+      const { input } = req.body;
       assertText(input, "input");
 
       const systemPrompt = `你是一位精通对话自我理论(DST)的心理专家。
@@ -158,7 +175,7 @@ Describe in 50 words, English only:`
 
     if (req.method === "POST" && url.pathname === "/api/summarize-theater") {
       requireApiKey(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY");
-      const { lastPositions } = await readJsonBody(req);
+      const { lastPositions } = req.body;
       assertText(lastPositions, "lastPositions");
 
       const summaryPrompt = `针对以下几种内在声音的冲突：
@@ -189,7 +206,7 @@ ${lastPositions.trim()}
 
     if (req.method === "POST" && url.pathname === "/api/positive-rewrite") {
       requireApiKey(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY");
-      const { input } = await readJsonBody(req);
+      const { input } = req.body;
       assertText(input, "input");
 
       const rewritePrompt = `改写为积极表达，保持第一人称和句子数量一致，只输出改写内容，用中文：
@@ -209,20 +226,32 @@ ${input.trim()}`;
       return sendJson(res, 200, { content });
     }
 
-    if (req.method === "GET") {
-      return serveStaticFile(url.pathname, res);
-    }
-
-    return sendJson(res, 404, { error: "Not found" });
+    // Serve static files
+    return serveStaticFile(url.pathname, res);
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return sendJson(res, statusCode, { error: error.message || "Server error" });
   }
-});
+};
 
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+function serveStaticFile(requestPath, res) {
+  const normalizedPath = requestPath === "/" ? "index.html" : path.normalize(requestPath).replace(/^([/\\])+/, "");
+  const filePath = path.resolve(ROOT_DIR, normalizedPath);
+
+  if (!filePath.startsWith(ROOT_DIR)) {
+    return sendJson(res, 403, { error: "Forbidden" });
+  }
+
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    return sendJson(res, 404, { error: "File not found" });
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = CONTENT_TYPES[ext] || "application/octet-stream";
+
+  res.writeHead(200, { "Content-Type": contentType });
+  fs.createReadStream(filePath).pipe(res);
+}
 
 function loadEnvFile(envPath) {
   if (!fs.existsSync(envPath)) {
@@ -246,25 +275,6 @@ function loadEnvFile(envPath) {
     if (key && !process.env[key]) {
       process.env[key] = value;
     }
-  }
-}
-
-async function readJsonBody(req) {
-  const chunks = [];
-
-  for await (const chunk of req) {
-    chunks.push(chunk);
-  }
-
-  const raw = Buffer.concat(chunks).toString("utf8").trim();
-  if (!raw) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    throw createHttpError(400, "Invalid JSON body.");
   }
 }
 
@@ -299,25 +309,6 @@ function assertText(value, fieldName) {
   }
 }
 
-function serveStaticFile(requestPath, res) {
-  const normalizedPath = requestPath === "/" ? "index.html" : path.normalize(requestPath).replace(/^([/\\])+/, "");
-  const filePath = path.resolve(ROOT_DIR, normalizedPath);
-
-  if (!filePath.startsWith(ROOT_DIR)) {
-    return sendJson(res, 403, { error: "Forbidden" });
-  }
-
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    return sendJson(res, 404, { error: "File not found" });
-  }
-
-  const ext = path.extname(filePath).toLowerCase();
-  const contentType = CONTENT_TYPES[ext] || "application/octet-stream";
-
-  res.writeHead(200, { "Content-Type": contentType });
-  fs.createReadStream(filePath).pipe(res);
-}
-
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
@@ -330,15 +321,3 @@ function createHttpError(statusCode, message) {
   error.statusCode = statusCode;
   return error;
 }
-
-const CONTENT_TYPES = {
-  ".css": "text/css; charset=utf-8",
-  ".html": "text/html; charset=utf-8",
-  ".js": "application/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".svg": "image/svg+xml",
-  ".webp": "image/webp",
-};
